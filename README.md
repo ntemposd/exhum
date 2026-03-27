@@ -1,6 +1,6 @@
-# 🏛️ Roundtable Legends
+# 💀 Exhum
 
-A multi-agent system where historical figures debate each other in real time.
+Digital exhumation of historical logic. A multi-agent system where historical figures debate each other in real time.
 
 Built as an experiment in orchestrating LLM agents, managing context, and designing structured interactions between systems.
 

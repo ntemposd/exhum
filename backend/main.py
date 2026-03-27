@@ -37,7 +37,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+FILE_DIR = Path(__file__).resolve().parent
+REPO_ROOT_CANDIDATE = FILE_DIR.parent
+
+# Support two deployment layouts:
+# 1) repo-root deploy: /app/backend/main.py
+# 2) backend-only deploy: /app/main.py
+if (REPO_ROOT_CANDIDATE / "backend" / "main.py").exists():
+    BASE_DIR = REPO_ROOT_CANDIDATE
+else:
+    BASE_DIR = FILE_DIR
+
 STATIC_DIR = BASE_DIR / "static"
 
 # Load environment variables from the local .env file when present.
@@ -78,7 +88,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+else:
+    logger.warning("Static directory not found at %s; /static route disabled", STATIC_DIR)
 
 
 class AgentConfig(BaseModel):

@@ -37,6 +37,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+AGENT_REGISTRY_CACHE_TTL_SECONDS = 60.0
+_agent_registry_cache: Dict[str, Any] = {
+    "expires_at": 0.0,
+    "agents": [],
+}
+
 FILE_DIR = Path(__file__).resolve().parent
 REPO_ROOT_CANDIDATE = FILE_DIR.parent
 
@@ -221,6 +227,23 @@ def _parse_agent_payload(agent_id: str, payload: str) -> AgentConfig:
         temperature=float(raw.get("temperature", 0.7)),
         max_tokens=int(raw.get("max_tokens", 512)),
     )
+
+
+def invalidate_agent_registry_cache() -> None:
+    _agent_registry_cache["expires_at"] = 0.0
+    _agent_registry_cache["agents"] = []
+
+
+def get_cached_agent_registry() -> Optional[List[Dict[str, Any]]]:
+    if time.monotonic() >= float(_agent_registry_cache["expires_at"]):
+        return None
+    cached_agents = _agent_registry_cache.get("agents", [])
+    return [dict(agent) for agent in cached_agents]
+
+
+def set_cached_agent_registry(agents: List[Dict[str, Any]]) -> None:
+    _agent_registry_cache["agents"] = [dict(agent) for agent in agents]
+    _agent_registry_cache["expires_at"] = time.monotonic() + AGENT_REGISTRY_CACHE_TTL_SECONDS
 
 
 async def fetch_agent_config(agent_id: str) -> AgentConfig:
@@ -487,6 +510,7 @@ async def register_agent(request: AgentRegisterRequest) -> Dict[str, Any]:
     try:
         redis.set(f"agent:{request.agent_id}", json.dumps(payload))
         redis.sadd("agents:index", request.agent_id)
+        invalidate_agent_registry_cache()
         return {"status": "ok", "agent_id": request.agent_id}
     except Exception as exc:
         logger.error("Error registering agent %s: %s", request.agent_id, exc)
@@ -496,6 +520,10 @@ async def register_agent(request: AgentRegisterRequest) -> Dict[str, Any]:
 @app.get("/agents")
 async def list_agents() -> Dict[str, Any]:
     try:
+        cached_agents = get_cached_agent_registry()
+        if cached_agents is not None:
+            return {"agents": cached_agents}
+
         ids = redis.smembers("agents:index") or []
         agent_ids = sorted(_decode_redis_value(item) for item in ids)
         agents: List[Dict[str, Any]] = []
@@ -507,6 +535,7 @@ async def list_agents() -> Dict[str, Any]:
             agent = _parse_agent_payload(agent_id, _decode_redis_value(payload))
             agents.append(agent.model_dump())
 
+        set_cached_agent_registry(agents)
         return {"agents": agents}
     except Exception as exc:
         logger.error("Error listing agents: %s", exc)

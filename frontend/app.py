@@ -60,6 +60,29 @@ def render_section_title(icon: str, label: str, extra_class: str = "") -> None:
     )
 
 
+TOPIC_LOCKED_MESSAGE = (
+    "Discussion theme is locked after the debate starts. "
+    "Wipe the debate or start a new session to change it."
+)
+
+
+def open_topic_edit_mode() -> None:
+    st.session_state.topic_edit_mode = True
+    st.session_state.topic_edit_buffer = st.session_state.topic_input
+
+
+def handle_topic_edit_button_click() -> None:
+    if st.session_state.discussion_started or st.session_state.messages:
+        st.session_state.topic_edit_mode = False
+        toast = getattr(st, "toast", None)
+        if callable(toast):
+            toast(TOPIC_LOCKED_MESSAGE)
+        else:
+            st.info(TOPIC_LOCKED_MESSAGE)
+        return
+    open_topic_edit_mode()
+
+
 # ============================================================================
 # SESSION STATE
 # ============================================================================
@@ -131,13 +154,6 @@ if st.session_state.topic_loaded_for_session != st.session_state.session_id:
         st.session_state.topic_input = backend_topic
         st.session_state.topic_edit_buffer = backend_topic
     st.session_state.topic_loaded_for_session = st.session_state.session_id
-
-if st.query_params.get("edit_topic") == "1":
-    st.session_state.topic_edit_mode = True
-    try:
-        del st.query_params["edit_topic"]
-    except Exception:
-        st.query_params.clear()
 
 if not backend_ok:
     st.error(
@@ -290,7 +306,10 @@ with st.sidebar:
             "speaker_progress": {},
             "turn_count": 0,
             "discussion_active": False,
+            "discussion_started": False,
+            "topic_edit_mode": False,
         })
+        st.session_state.topic_edit_buffer = st.session_state.topic_input
         st.success("Messages cleared.")
 
     if st.button("📄 Download Transcript", use_container_width=True):
@@ -316,18 +335,49 @@ with st.sidebar:
 col_chat, col_panel = st.columns([3, 1])
 
 with col_chat:
+    topic_locked = st.session_state.discussion_started or len(st.session_state.messages) > 0
     st.markdown("## 💬 Discussion")
 
     if not st.session_state.topic_edit_mode:
         st.session_state.topic_edit_buffer = st.session_state.topic_input
         safe_topic = st.session_state.topic_input.replace("<", "&lt;").replace(">", "&gt;")
-        st.markdown(
-            f"<div class='exhum-topic-hero'>"
-            f"<a class='exhum-topic-edit-link' href='?edit_topic=1' target='_self' title='Edit discussion theme'>✏️</a>"
-            f"<p class='exhum-topic-title'>{safe_topic}</p>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
+        hero_col, edit_col = st.columns([18, 1])
+        with hero_col:
+            st.markdown(
+                f"<div class='exhum-topic-hero'>"
+                f"<p class='exhum-topic-title'>{safe_topic}</p>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+        with edit_col:
+            if topic_locked:
+                st.markdown(
+                    """
+                    <style>
+                    div[class*="st-key-topic_edit_toggle"] button {
+                        background: #e5e7eb !important;
+                        color: #6b7280 !important;
+                        box-shadow: none !important;
+                        transform: none !important;
+                        cursor: not-allowed !important;
+                    }
+                    div[class*="st-key-topic_edit_toggle"] button:hover {
+                        background: #e5e7eb !important;
+                        color: #6b7280 !important;
+                        box-shadow: none !important;
+                        transform: none !important;
+                    }
+                    </style>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            st.button(
+                "✏️",
+                key="topic_edit_toggle",
+                help=TOPIC_LOCKED_MESSAGE if topic_locked else "Edit discussion theme",
+                on_click=handle_topic_edit_button_click,
+                use_container_width=True,
+            )
     else:
         st.text_input(
             "Discussion Topic",

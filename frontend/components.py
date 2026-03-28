@@ -139,6 +139,13 @@ def _toggle_message_expansion(message_key: str) -> None:
 
 
 def save_topic_from_inline_editor() -> None:
+    if st.session_state.discussion_started or st.session_state.messages:
+        st.session_state.topic_edit_mode = False
+        st.warning(
+            "Discussion theme is locked after the debate starts. "
+            "Wipe the debate or start a new session to change it."
+        )
+        return
     new_topic = st.session_state.topic_edit_buffer.strip()
     if not new_topic:
         st.warning("Topic cannot be empty.")

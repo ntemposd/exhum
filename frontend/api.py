@@ -5,7 +5,7 @@ All HTTP calls live here; the rest of the app stays HTTP-free.
 
 import logging
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 import streamlit as st
@@ -42,44 +42,54 @@ def get_backend_url() -> str:
 BACKEND_URL = get_backend_url()
 
 
-async def probe_backend() -> Tuple[bool, str]:
+@st.cache_data(ttl=60, show_spinner=False)
+def _probe_backend_cached(backend_url: str) -> Tuple[bool, str]:
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{BACKEND_URL}/", timeout=10)
+        with httpx.Client() as client:
+            response = client.get(f"{backend_url}/", timeout=10)
             response.raise_for_status()
         return True, ""
     except Exception as exc:
-        logger.error("Backend probe failed for %s: %s", BACKEND_URL, exc)
-        if BACKEND_URL == DEFAULT_LOCAL_BACKEND_URL:
+        logger.error("Backend probe failed for %s: %s", backend_url, exc)
+        if backend_url == DEFAULT_LOCAL_BACKEND_URL:
             return (
                 False,
                 "Backend unreachable at http://localhost:8000. Start the FastAPI backend locally, "
                 "or set BACKEND_URL to your Railway public URL.",
             )
         return False, (
-            f"Backend unreachable at {BACKEND_URL}. Check that the configured Railway public URL is correct and live."
+            f"Backend unreachable at {backend_url}. Check that the configured Railway public URL is correct and live."
         )
 
 
-async def fetch_agents_from_backend() -> Dict[str, List[Dict[str, str]]]:
+@st.cache_data(ttl=60, show_spinner=False)
+def _fetch_agents_from_backend_cached(backend_url: str) -> Dict[str, Any]:
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{BACKEND_URL}/agents", timeout=10)
+        with httpx.Client() as client:
+            response = client.get(f"{backend_url}/agents", timeout=10)
             response.raise_for_status()
             return response.json()
     except Exception as exc:
         logger.error("Error fetching agents: %s", exc)
-        if BACKEND_URL == DEFAULT_LOCAL_BACKEND_URL:
+        if backend_url == DEFAULT_LOCAL_BACKEND_URL:
             message = (
                 "Backend unreachable at http://localhost:8000. Start the FastAPI backend locally, "
                 "or set BACKEND_URL to your Railway public URL."
             )
         else:
-            message = f"Could not reach backend at {BACKEND_URL}."
+            message = f"Could not reach backend at {backend_url}."
         return {
             "agents": [],
             "_error": message,
         }
+
+
+async def probe_backend() -> Tuple[bool, str]:
+    return _probe_backend_cached(BACKEND_URL)
+
+
+async def fetch_agents_from_backend() -> Dict[str, List[Dict[str, str]]]:
+    return _fetch_agents_from_backend_cached(BACKEND_URL)
 
 
 async def fetch_session_topic(session_id: str) -> str:

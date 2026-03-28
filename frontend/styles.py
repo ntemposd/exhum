@@ -153,6 +153,24 @@ def apply_styles() -> None:
         border-color: #000000;
     }
 
+    div[class*="st-key-topic_edit_toggle"] button {
+        width: 100%;
+        min-height: 36px !important;
+        padding: 0 !important;
+        border: 2px solid #000000 !important;
+        border-radius: 0 !important;
+        background: #fff7ed !important;
+        color: #111111 !important;
+        box-shadow: 2px 2px 0 0 #000000 !important;
+    }
+
+    div[class*="st-key-topic_edit_toggle"] button:hover {
+        background: #facc15 !important;
+        color: #111111 !important;
+        box-shadow: 3px 3px 0 0 #000000 !important;
+        transform: translate(-1px, -1px);
+    }
+
     .exhum-topic-title {
         margin: 0;
         font-size: 1.25rem;

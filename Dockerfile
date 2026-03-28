@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 LABEL maintainer="Backend Architect"
-LABEL description="Roundtable Legends - FastAPI Backend"
+LABEL description="EXHUMED - FastAPI Backend"
 
 # Set working directory
 WORKDIR /app

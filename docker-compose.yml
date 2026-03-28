@@ -1,6 +1,6 @@
 version: '3.8'
 
-# Roundtable Legends - Docker Compose Orchestration
+# EXHUMED - Docker Compose Orchestration
 # Start with: docker-compose up
 # Stop with: docker-compose down
 
@@ -10,7 +10,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: roundtable-backend
+    container_name: exhumed-backend
     ports:
       - "8000:8000"
     environment:
@@ -29,7 +29,7 @@ services:
       - /tmp:/tmp  # For PDF exports
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     networks:
-      - roundtable-network
+      - exhumed-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
@@ -43,7 +43,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.streamlit
-    container_name: roundtable-frontend
+    container_name: exhumed-frontend
     ports:
       - "8501:8501"
     environment:
@@ -57,7 +57,7 @@ services:
       - streamlit-cache:/root/.streamlit/cache
     command: streamlit run frontend/app.py --server.port=8501 --server.address=0.0.0.0
     networks:
-      - roundtable-network
+      - exhumed-network
     depends_on:
       backend:
         condition: service_healthy
@@ -65,7 +65,7 @@ services:
 
 # Network for inter-service communication
 networks:
-  roundtable-network:
+  exhumed-network:
     driver: bridge
 
 # Volumes for persistent data

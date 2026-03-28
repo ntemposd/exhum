@@ -86,3 +86,4 @@ Thumbs.db
 /cache/
 JACCARD_ENTROPY_IMPLEMENTATION.md
 test_jaccard.py
+backend/logs.*.json

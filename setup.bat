@@ -1,9 +1,9 @@
 @echo off
-REM Roundtable Legends - Setup Script (Windows)
+REM EXHUMED - Setup Script (Windows)
 setlocal enabledelayedexpansion
 
 echo ==================================================
-echo  Roundtable Legends - Setup (Windows)
+echo  EXHUMED - Setup (Windows)
 echo ==================================================
 echo.
 

@@ -1,5 +1,5 @@
 """
-Roundtable Legends – global CSS injected on every page render.
+EXHUMED – global CSS injected on every page render.
 Kept in its own module so app.py stays focused on layout/logic.
 """
 
@@ -87,18 +87,40 @@ def apply_styles() -> None:
         color: #111111 !important;
     }
 
-    .rtl-card {
+    [data-testid="stSidebar"] .exhum-sidebar-heading,
+    [data-testid="stMain"] h2,
+    .exhum-section-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 6px 0 10px 0;
+        font-size: 1.18rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        line-height: 1;
+        color: #111111 !important;
+    }
+
+    [data-testid="stMain"] h2 {
+        padding: 0;
+        border: none;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .exhum-card {
         border: 2px solid #000000;
-        border-radius: 4px;
+        border-radius: 0;
         padding: 14px;
         background: #ffffff;
         margin-bottom: 10px;
         box-shadow: 4px 4px 0 0 #000000;
     }
 
-    .rtl-topic-hero {
+    .exhum-topic-hero {
         border: 3px solid #000000;
-        border-radius: 4px;
+        border-radius: 0;
         padding: 16px 58px 16px 18px;
         background: #fff7ed;
         box-shadow: 5px 5px 0 0 #000000;
@@ -106,7 +128,7 @@ def apply_styles() -> None:
         position: relative;
     }
 
-    .rtl-topic-edit-link {
+    .exhum-topic-edit-link {
         position: absolute;
         top: 10px;
         right: 10px;
@@ -121,24 +143,24 @@ def apply_styles() -> None:
         color: #111111;
         background: #fff7ed;
         border: 2px solid #000000;
-        border-radius: 4px;
+        border-radius: 0;
         box-shadow: 2px 2px 0 0 #000000;
     }
 
-    .rtl-topic-edit-link:hover {
+    .exhum-topic-edit-link:hover {
         color: #111111;
         background: #fff7ed;
         border-color: #000000;
     }
 
-    .rtl-topic-title {
+    .exhum-topic-title {
         margin: 0;
         font-size: 1.25rem;
         font-weight: 700;
         line-height: 1.35;
     }
 
-    .rtl-badge {
+    .exhum-badge {
         display: inline-block;
         border: 2px solid #000000;
         border-radius: 999px;
@@ -149,70 +171,156 @@ def apply_styles() -> None:
         box-shadow: 2px 2px 0 0 #000000;
     }
 
-    .rtl-badge-draft {
+    .exhum-badge-draft {
         background: #fff4d6;
     }
 
-    .rtl-badge-live {
+    .exhum-badge-live {
         background: #dcfce7;
     }
 
-    .rtl-selected-chip-group {
+    .exhum-selected-chip-group {
         width: 100%;
         margin-top: 6px;
     }
 
-    .rtl-drafted-chip-wrap {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+    .exhum-drafted-chip-wrap {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
         margin-top: 8px;
         margin-bottom: 14px;
     }
 
-    .rtl-drafted-chip {
-        display: inline-flex;
+    .exhum-drafted-chip {
+        display: flex;
         align-items: stretch;
+        width: 100%;
+        min-height: 50px;
         text-decoration: none !important;
-        border: 2px solid #000000;
-        border-radius: 4px;
-        background: #ffffff;
-        box-shadow: 2px 2px 0 0 #000000;
+        border: 3px solid #000000;
+        border-radius: 0;
+        background: #ff6b00;
+        box-shadow: 4px 4px 0 0 #000000;
         color: #111111 !important;
-        max-width: 100%;
+        transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
     }
 
-    .rtl-drafted-chip:hover {
-        background: #fff7ed;
+    .exhum-drafted-chip:hover {
+        background: #ff8a36;
+        transform: translate(-1px, -1px);
+        box-shadow: 5px 5px 0 0 #000000;
     }
 
-    .rtl-drafted-chip .drafted-chip-label {
-        padding: 5px 9px;
-        line-height: 1.1;
-        font-size: 0.76rem;
-        font-weight: 600;
+    .exhum-drafted-chip .drafted-chip-label {
+        display: flex;
+        align-items: center;
+        flex: 1;
+        min-width: 0;
+        padding: 8px 10px 7px 12px;
+        line-height: 1.15;
+        font-size: 0.78rem;
+        font-weight: 800;
         color: #111111;
-        max-width: 170px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
         overflow: hidden;
-        white-space: nowrap;
+        white-space: normal;
         text-overflow: ellipsis;
     }
 
-    .rtl-drafted-chip .drafted-chip-x {
-        display: inline-flex;
+    .exhum-drafted-chip .drafted-chip-x {
+        display: flex;
         align-items: center;
         justify-content: center;
-        min-width: 25px;
-        padding: 0 7px;
-        border-left: 2px solid #000000;
-        background: #ffe2e2;
+        min-width: 40px;
+        padding: 0 10px;
+        border-left: 3px solid #000000;
+        background: #ffffff;
         line-height: 1;
-        font-size: 0.8rem;
-        font-weight: 700;
+        font-size: 0.95rem;
+        font-weight: 900;
         color: #111111;
     }
 
-    .rtl-drafted-empty {
+    section[data-testid="stSidebar"] .st-key-drafted_council_chips {
+        margin-top: 8px;
+        margin-bottom: 14px;
+    }
+
+    section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stHorizontalBlock"] {
+        gap: 0.65rem;
+    }
+
+    section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="column"] {
+        width: 100% !important;
+    }
+
+    section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] {
+        width: 100%;
+    }
+
+    section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] > button,
+    section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button {
+        min-height: 40px;
+        width: 100%;
+        max-width: 100%;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between;
+        text-align: left;
+        padding: 7px 10px;
+        border: 2px solid #000000 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        box-shadow: 2px 2px 0 0 #000000 !important;
+        color: #111111 !important;
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-transform: none !important;
+        letter-spacing: 0.01em;
+        line-height: 1.15;
+        font-family: 'IBM Plex Mono', monospace !important;
+        overflow: hidden !important;
+        transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] > button:hover,
+    section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button:hover {
+        background: #fff7ed !important;
+        border-color: #000000 !important;
+        color: #111111 !important;
+        transform: translate(-1px, -1px);
+        box-shadow: 3px 3px 0 0 #000000 !important;
+    }
+
+    section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] > button:focus,
+    section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] > button:focus-visible,
+    section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button:focus,
+    section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button:focus-visible {
+        outline: none;
+        border-color: #000000 !important;
+        box-shadow: 3px 3px 0 0 #000000 !important;
+    }
+
+    section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button p {
+        color: #111111 !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.76rem !important;
+        font-weight: 700 !important;
+        text-transform: none !important;
+        letter-spacing: 0.01em !important;
+        white-space: nowrap !important;
+        line-height: 1.15 !important;
+        text-align: left !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+
+    .exhum-drafted-empty {
         margin-top: 8px;
         margin-bottom: 14px;
         border: 2px dashed #000000;
@@ -229,7 +337,7 @@ def apply_styles() -> None:
         color: #111111 !important;
     }
 
-    .rtl-legend-card {
+    .exhum-legend-card {
         border: 2px solid #000000;
         border-radius: 4px 4px 0 0;
         border-bottom: none;
@@ -243,18 +351,18 @@ def apply_styles() -> None:
         transition: background-color 120ms ease, border-color 120ms ease;
     }
 
-    .rtl-legend-card p, .rtl-legend-card div, .rtl-legend-card span {
+    .exhum-legend-card p, .exhum-legend-card div, .exhum-legend-card span {
         color: #111111 !important;
     }
 
-    .rtl-legend-meta {
+    .exhum-legend-meta {
         font-size: 0.75rem;
         line-height: 1.25;
         color: #555555 !important;
         margin: 0;
     }
 
-    .rtl-legend-state-badge {
+    .exhum-legend-state-badge {
         position: absolute;
         top: 8px;
         right: 8px;
@@ -267,14 +375,14 @@ def apply_styles() -> None:
         color: #166534;
         box-shadow: 2px 2px 0 0 #000000;
     }
-    .rtl-legend-selected {
+    .exhum-legend-selected {
         border: 2px solid #000000;
         border-bottom: none;
         background: #ffffff;
         box-shadow: 5px 5px 0 0 #39ff14;
     }
 
-    [data-testid="stDialog"] [data-testid="stVerticalBlock"]:has(.rtl-legend-card):has(button):not(:has([data-testid="stVerticalBlock"] .rtl-legend-card)) {
+    [data-testid="stDialog"] [data-testid="stVerticalBlock"]:has(.exhum-legend-card):has(button):not(:has([data-testid="stVerticalBlock"] .exhum-legend-card)) {
         gap: 0 !important;
     }
 
@@ -285,8 +393,16 @@ def apply_styles() -> None:
 
     [data-testid="stDialog"] [role="dialog"] {
         border: 3px solid #000000 !important;
-        border-radius: 6px !important;
+        border-radius: 0 !important;
         box-shadow: 8px 8px 0 0 #000000 !important;
+    }
+
+    [data-testid="stDialog"] [role="dialog"] h1,
+    [data-testid="stDialog"] [role="dialog"] h2,
+    [data-testid="stDialog"] [role="dialog"] h3 {
+        display: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
 
     [data-testid="stDialog"] [role="dialog"] h1,
@@ -300,13 +416,19 @@ def apply_styles() -> None:
     }
 
     [data-testid="stDialog"] [data-testid="stCaptionContainer"] p {
-        color: #374151 !important;
-        font-weight: 500;
+        margin: 0 0 14px 0 !important;
+        color: #4b5563 !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.74rem !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.02em !important;
+        line-height: 1.45 !important;
+        text-transform: none !important;
     }
 
     [data-testid="stDialog"] button[aria-label="Close"] {
         border: 2px solid #000000 !important;
-        border-radius: 4px !important;
+        border-radius: 0 !important;
         background: #ffffff !important;
         color: #111111 !important;
         box-shadow: 2px 2px 0 0 #000000 !important;
@@ -317,13 +439,18 @@ def apply_styles() -> None:
         border-color: #000000 !important;
     }
 
-    [data-testid="stDialog"] .rtl-legend-card:not(.rtl-legend-selected):hover {
-        background: #ecfdf3;
-        border-color: #16a34a;
+    [data-testid="stDialog"] .exhum-legend-card:not(.exhum-legend-selected):hover {
+        background: #ffffff;
+        border-color: #000000;
         border-bottom: none;
     }
 
-    [data-testid="stDialog"] .rtl-legend-selected:hover {
+    [data-testid="stDialog"] .exhum-legend-card,
+    [data-testid="stDialog"] .exhum-legend-selected {
+        border-radius: 0 !important;
+    }
+
+    [data-testid="stDialog"] .exhum-legend-selected:hover {
         background: #fff1f2;
     }
 
@@ -337,7 +464,7 @@ def apply_styles() -> None:
         width: 100%;
         min-height: 42px;
         margin-top: 0 !important;
-        border-radius: 0 0 4px 4px !important;
+        border-radius: 0 !important;
         border-top: none !important;
         position: relative;
         box-shadow: 3px 3px 0 0 #000000 !important;
@@ -363,6 +490,9 @@ def apply_styles() -> None:
     [data-testid="stDialog"] div[class*="st-key-draft_add_"] button {
         background: #ffffff !important;
         color: #15803d !important;
+        border: 2px solid #000000 !important;
+        border-top: none !important;
+        box-shadow: 3px 3px 0 0 #000000 !important;
     }
 
     [data-testid="stDialog"] div[class*="st-key-draft_add_"] button * {
@@ -375,9 +505,9 @@ def apply_styles() -> None:
         font-weight: 700 !important;
         text-decoration: none !important;
         text-shadow: 0.25px 0 currentColor, -0.25px 0 currentColor;
-        border-left: 2px solid #16a34a !important;
-        border-right: 2px solid #16a34a !important;
-        border-bottom: 2px solid #16a34a !important;
+        border: 2px solid #000000 !important;
+        border-top: none !important;
+        box-shadow: 3px 3px 0 0 #000000 !important;
     }
 
     [data-testid="stDialog"] div[class*="st-key-draft_add_"] button:hover * {
@@ -411,20 +541,20 @@ def apply_styles() -> None:
         color: #b91c1c !important;
     }
 
-    .rtl-legend-avatar {
+    .exhum-legend-avatar {
         width: 54px;
         height: 54px;
         border: 2px solid #000000;
-        border-radius: 6px;
+        border-radius: 0;
         object-fit: cover;
         box-shadow: 2px 2px 0 0 #000000;
         margin-bottom: 8px;
         background: #ffffff;
     }
 
-    .rtl-bubble {
+    .exhum-bubble {
         border: 2px solid #000000;
-        border-radius: 4px;
+        border-radius: 0;
         padding: 14px 18px;
         margin: 10px 0;
         line-height: 1.6;
@@ -433,47 +563,47 @@ def apply_styles() -> None:
         background: #ffffff;
     }
 
-    .rtl-bubble-0 { background: #fff1e8; border-left: 8px solid #ff6b00; }
-    .rtl-bubble-1 { background: #eceff3; border-left: 8px solid #1f2937; }
-    .rtl-bubble-2 { background: #e9fbfa; border-left: 8px solid #0ea5a4; }
-    .rtl-bubble-3 { background: #e9f1ff; border-left: 8px solid #2563eb; }
-    .rtl-bubble-4 { background: #ecfdf3; border-left: 8px solid #16a34a; }
+    .exhum-bubble-0 { background: #fff1e8; border-left: 8px solid #ff6b00; }
+    .exhum-bubble-1 { background: #eceff3; border-left: 8px solid #1f2937; }
+    .exhum-bubble-2 { background: #e9fbfa; border-left: 8px solid #0ea5a4; }
+    .exhum-bubble-3 { background: #e9f1ff; border-left: 8px solid #2563eb; }
+    .exhum-bubble-4 { background: #ecfdf3; border-left: 8px solid #16a34a; }
 
-    [data-testid="element-container"]:has(.rtl-read-more-anchor) + [data-testid="element-container"]:has(.stButton),
-    [data-testid="element-container"]:has(.rtl-read-more-anchor) + [data-testid="element-container"]:has([data-testid="stButton"]) {
+    [data-testid="element-container"]:has(.exhum-read-more-anchor) + [data-testid="element-container"]:has(.stButton),
+    [data-testid="element-container"]:has(.exhum-read-more-anchor) + [data-testid="element-container"]:has([data-testid="stButton"]) {
         display: flex !important;
         justify-content: flex-end !important;
         margin-top: -2px !important;
         margin-bottom: 10px !important;
     }
 
-    [data-testid="element-container"]:has(.rtl-read-more-anchor) + [data-testid="element-container"]:has(.stButton) .stButton,
-    [data-testid="element-container"]:has(.rtl-read-more-anchor) + [data-testid="element-container"]:has([data-testid="stButton"]) [data-testid="stButton"] {
+    [data-testid="element-container"]:has(.exhum-read-more-anchor) + [data-testid="element-container"]:has(.stButton) .stButton,
+    [data-testid="element-container"]:has(.exhum-read-more-anchor) + [data-testid="element-container"]:has([data-testid="stButton"]) [data-testid="stButton"] {
         width: fit-content;
     }
 
-    [data-testid="element-container"]:has(.rtl-read-more-anchor) + [data-testid="element-container"]:has(.stButton) .stButton > button,
-    [data-testid="element-container"]:has(.rtl-read-more-anchor) + [data-testid="element-container"]:has([data-testid="stButton"]) [data-testid="stButton"] > button {
+    [data-testid="element-container"]:has(.exhum-read-more-anchor) + [data-testid="element-container"]:has(.stButton) .stButton > button,
+    [data-testid="element-container"]:has(.exhum-read-more-anchor) + [data-testid="element-container"]:has([data-testid="stButton"]) [data-testid="stButton"] > button {
         min-height: 32px !important;
         padding: 4px 10px !important;
         font-size: 0.75rem !important;
         box-shadow: 2px 2px 0 0 #000000 !important;
     }
 
-    [data-testid="element-container"]:has(.rtl-read-more-color-0) + [data-testid="element-container"]:has(.stButton) .stButton > button { background: #fff1e8 !important; }
-    [data-testid="element-container"]:has(.rtl-read-more-color-1) + [data-testid="element-container"]:has(.stButton) .stButton > button { background: #eceff3 !important; }
-    [data-testid="element-container"]:has(.rtl-read-more-color-2) + [data-testid="element-container"]:has(.stButton) .stButton > button { background: #e9fbfa !important; }
-    [data-testid="element-container"]:has(.rtl-read-more-color-3) + [data-testid="element-container"]:has(.stButton) .stButton > button { background: #e9f1ff !important; }
-    [data-testid="element-container"]:has(.rtl-read-more-color-4) + [data-testid="element-container"]:has(.stButton) .stButton > button { background: #ecfdf3 !important; }
+    [data-testid="element-container"]:has(.exhum-read-more-color-0) + [data-testid="element-container"]:has(.stButton) .stButton > button { background: #fff1e8 !important; }
+    [data-testid="element-container"]:has(.exhum-read-more-color-1) + [data-testid="element-container"]:has(.stButton) .stButton > button { background: #eceff3 !important; }
+    [data-testid="element-container"]:has(.exhum-read-more-color-2) + [data-testid="element-container"]:has(.stButton) .stButton > button { background: #e9fbfa !important; }
+    [data-testid="element-container"]:has(.exhum-read-more-color-3) + [data-testid="element-container"]:has(.stButton) .stButton > button { background: #e9f1ff !important; }
+    [data-testid="element-container"]:has(.exhum-read-more-color-4) + [data-testid="element-container"]:has(.stButton) .stButton > button { background: #ecfdf3 !important; }
 
-    .rtl-header {
+    .exhum-header {
         display: flex;
         align-items: center;
         gap: 10px;
         margin-bottom: 8px;
     }
 
-    .rtl-brand-logo {
+    .exhum-brand-logo {
         display: block;
         width: 78%;
         max-width: 180px;
@@ -481,13 +611,13 @@ def apply_styles() -> None:
         margin: 0 auto 10px auto;
     }
 
-    .rtl-brand-copy {
+    .exhum-brand-copy {
         text-align: center;
         margin: 0 auto 14px auto;
         max-width: 230px;
     }
 
-    .rtl-brand-title {
+    .exhum-brand-title {
         font-size: 1.5rem;
         font-weight: 800;
         letter-spacing: 0.18em;
@@ -496,14 +626,14 @@ def apply_styles() -> None:
         margin-bottom: 6px;
     }
 
-    .rtl-brand-subtitle {
+    .exhum-brand-subtitle {
         font-size: 0.72rem;
         line-height: 1.35;
         color: #444444;
         letter-spacing: 0.02em;
     }
 
-    .rtl-sticky-footer {
+    .exhum-sticky-footer {
         position: fixed;
         left: 0;
         right: 0;
@@ -517,10 +647,10 @@ def apply_styles() -> None:
         font-size: 12px;
     }
 
-    .rtl-avatar {
+    .exhum-avatar {
         width: 32px;
         height: 32px;
-        border-radius: 4px;
+        border-radius: 0;
         border: 2px solid #000000;
         display: flex;
         align-items: center;
@@ -531,45 +661,45 @@ def apply_styles() -> None:
         box-shadow: 2px 2px 0 0 #000000;
     }
 
-    .rtl-avatar-img {
+    .exhum-avatar-img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        border-radius: 2px;
+        border-radius: 0;
     }
 
-    .rtl-name {
+    .exhum-name {
         font-weight: 700;
         font-size: 0.88rem;
         letter-spacing: 0.3px;
     }
 
-    .rtl-meta {
+    .exhum-meta {
         font-size: 0.75rem;
         opacity: 0.8;
         margin-left: auto;
     }
 
-    .rtl-speaker {
+    .exhum-speaker {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: 10px;
         padding: 8px 10px;
-        border-radius: 4px;
+        border-radius: 0;
         border: 2px solid #000000;
         margin-bottom: 6px;
         background: #ffffff;
         box-shadow: 3px 3px 0 0 #000000;
     }
 
-    .rtl-speaker-count {
+    .exhum-speaker-count {
         margin-left: auto;
         font-size: 0.8rem;
         opacity: 0.8;
     }
 
-    .rtl-speaker-archetype {
+    .exhum-speaker-archetype {
         font-size: 0.72rem;
         font-weight: 400;
         opacity: 0.6;
@@ -579,13 +709,13 @@ def apply_styles() -> None:
         margin-top: 1px;
     }
 
-    .rtl-speaker-progress-wrap {
+    .exhum-speaker-progress-wrap {
         flex-basis: 100%;
         width: 100%;
         margin-top: 8px;
     }
 
-    .rtl-speaker-progress-track {
+    .exhum-speaker-progress-track {
         width: 100%;
         height: 10px;
         border: 2px solid #000000;
@@ -594,26 +724,26 @@ def apply_styles() -> None:
         overflow: hidden;
     }
 
-    .rtl-speaker-progress-fill {
+    .exhum-speaker-progress-fill {
         height: 100%;
         background: #2563eb;
     }
 
-    .rtl-speaker-progress-footer {
+    .exhum-speaker-progress-footer {
         display: flex;
         justify-content: space-between;
         align-items: baseline;
         margin-top: 4px;
     }
 
-    .rtl-speaker-progress-text {
+    .exhum-speaker-progress-text {
         font-size: 0.68rem;
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
     }
 
-    .rtl-empty {
+    .exhum-empty {
         text-align: center;
         padding: 60px 20px;
         opacity: 0.75;
@@ -630,12 +760,14 @@ def apply_styles() -> None:
     }
 
     .stButton > button {
-        border: 2px solid #000000;
-        border-radius: 4px;
-        background: #ffffff;
-        color: #111111;
-        box-shadow: 3px 3px 0 0 #000000;
-        font-weight: 700;
+        border: 3px solid #000000;
+        border-radius: 0;
+        background: #1f2937;
+        color: #f8fafc;
+        box-shadow: 4px 4px 0 0 #000000;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -643,38 +775,54 @@ def apply_styles() -> None:
 
     .stButton > button p {
         white-space: nowrap;
+        color: #f8fafc !important;
+        font-weight: 800 !important;
     }
 
     .stButton > button:hover {
-        transform: none;
-        box-shadow: 3px 3px 0 0 #000000;
+        transform: translate(-1px, -1px);
+        box-shadow: 5px 5px 0 0 #000000;
         border-color: #000000;
-        background: #f7f7f7;
+        background: #374151;
+        color: #f8fafc;
     }
 
     .stButton > button[kind="primary"] {
         background: #facc15;
         border: 3px solid #000000;
+        color: #111111;
         box-shadow: 4px 4px 0 0 #000000;
         min-height: 48px;
         font-size: 0.95rem;
     }
 
-    .rtl-telemetry-desktop {
+    .stButton > button[kind="primary"] p {
+        color: #111111 !important;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        background: #e0a800;
+        color: #111111;
+        box-shadow: 5px 5px 0 0 #000000;
+    }
+
+    .exhum-telemetry-desktop {
         display: block;
     }
 
-    .rtl-telemetry-mobile {
+    .exhum-telemetry-mobile {
         display: none;
-        margin-top: 14px;
+        margin-top: 0;
     }
 
-    .rtl-telemetry-shell {
+    .exhum-telemetry-shell {
         font-family: 'Courier New', 'Roboto Mono', monospace;
         color: #000000;
+        margin-top: 0;
+        padding-top: 0;
     }
 
-    .rtl-telemetry-header {
+    .exhum-telemetry-header {
         position: sticky;
         top: 8px;
         z-index: 2;
@@ -683,6 +831,7 @@ def apply_styles() -> None:
         box-shadow: 6px 6px 0 #000000;
         background: #ffffff;
         padding: 8px 10px;
+        margin-top: 0;
         margin-bottom: 16px;
         font-weight: 800;
         font-size: 0.78rem;
@@ -693,21 +842,21 @@ def apply_styles() -> None:
         gap: 8px;
     }
 
-    .rtl-telemetry-dot {
+    .exhum-telemetry-dot {
         width: 10px;
         height: 10px;
         border: 2px solid #000000;
         border-radius: 50%;
         background: #23c552;
-        animation: rtl-dot-blink 1.1s infinite;
+        animation: exhum-dot-blink 1.1s infinite;
     }
 
-    @keyframes rtl-dot-blink {
+    @keyframes exhum-dot-blink {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.25; }
     }
 
-    .rtl-telemetry-block {
+    .exhum-telemetry-block {
         border: 3px solid #000000;
         border-radius: 0;
         box-shadow: 6px 6px 0 #000000;
@@ -716,7 +865,7 @@ def apply_styles() -> None:
         padding: 12px;
     }
 
-    .rtl-telemetry-kicker {
+    .exhum-telemetry-kicker {
         display: block;
         font-size: 0.7rem;
         font-weight: 800;
@@ -725,20 +874,20 @@ def apply_styles() -> None:
         margin-bottom: 6px;
     }
 
-    .rtl-telemetry-value {
+    .exhum-telemetry-value {
         font-size: 1.18rem;
         font-weight: 800;
         line-height: 1.2;
     }
 
-    .rtl-telemetry-emphasis {
+    .exhum-telemetry-emphasis {
         background: #FFD700;
         border: 2px solid #000000;
         padding: 0 4px;
         box-decoration-break: clone;
     }
 
-    .rtl-ctx-track {
+    .exhum-ctx-track {
         height: 18px;
         border: 2px solid #000000;
         background: #ffffff;
@@ -747,13 +896,13 @@ def apply_styles() -> None:
         overflow: hidden;
     }
 
-    .rtl-ctx-fill {
+    .exhum-ctx-fill {
         height: 100%;
         background: #FFD700;
         border-right: 2px solid #000000;
     }
 
-    .rtl-air-row {
+    .exhum-air-row {
         display: grid;
         grid-template-columns: 88px 1fr 50px;
         align-items: center;
@@ -761,37 +910,42 @@ def apply_styles() -> None:
         margin-bottom: 8px;
     }
 
-    .rtl-air-label,
-    .rtl-air-value {
+    .exhum-air-label,
+    .exhum-air-value {
         font-size: 0.72rem;
         font-weight: 700;
         line-height: 1.2;
         text-transform: uppercase;
     }
 
-    .rtl-air-track {
+    .exhum-air-track {
         height: 14px;
         border: 2px solid #000000;
         background: #ffffff;
         overflow: hidden;
     }
 
-    .rtl-air-fill {
+    .exhum-air-fill {
         height: 100%;
         background: #000000;
     }
 
     @media (max-width: 768px) {
-        .rtl-telemetry-desktop {
+        .exhum-telemetry-desktop {
             display: none;
         }
 
-        .rtl-telemetry-mobile {
+        .exhum-telemetry-mobile {
             display: block;
         }
+
+        [data-testid="stMain"] h2 {
+            margin: 4px 0 8px 0;
+        }
+
     }
 
-    .rtl-temperature-controller {
+    .exhum-temperature-controller {
         border: none;
         background: transparent;
         padding: 0;
@@ -800,7 +954,7 @@ def apply_styles() -> None:
         border-radius: 0;
     }
 
-    .rtl-temperature-caption {
+    .exhum-temperature-caption {
         display: block;
         font-size: 0.68rem;
         font-weight: 500;
@@ -809,37 +963,91 @@ def apply_styles() -> None:
         color: #555555;
     }
 
-    .rtl-sidebar-heading {
-        font-size: 0.99rem;
-        font-weight: 800;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        margin: 4px 0 8px 0;
+    .exhum-section-title {
         color: #111111;
     }
 
-    section[data-testid="stSidebar"] .rtl-card {
+    .exhum-section-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border: 2px solid #000000;
+        border-radius: 0;
+        background: #ffffff;
+        box-shadow: 2px 2px 0 0 #000000;
+        font-size: 0.78rem;
+        flex: 0 0 auto;
+    }
+
+    .exhum-sidebar-heading {
+        margin: 0;
+        color: inherit;
+    }
+
+    section[data-testid="stSidebar"] .exhum-card {
         border-width: 1.5px;
         box-shadow: 2px 2px 0 0 #000000;
         padding: 10px 12px;
         margin-bottom: 8px;
     }
 
+    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button {
+        min-height: 40px !important;
+        padding: 6px 8px !important;
+        border: 3px solid #000000 !important;
+        border-radius: 0 !important;
+        background: #1f2937 !important;
+        color: #f8fafc !important;
+        box-shadow: 3px 3px 0 0 #000000 !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.68rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.08em !important;
+        text-transform: uppercase !important;
+    }
+
+    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button:hover {
+        background: #374151 !important;
+        border-color: #000000 !important;
+        color: #f8fafc !important;
+        box-shadow: 4px 4px 0 0 #000000 !important;
+        transform: translate(-1px, -1px);
+    }
+
+    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button p {
+        color: #f8fafc !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.68rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.08em !important;
+        text-transform: uppercase !important;
+        white-space: nowrap !important;
+    }
+
     section[data-testid="stSidebar"] .stButton > button,
     section[data-testid="stSidebar"] .stFormSubmitButton > button {
-        border-width: 1.5px;
-        box-shadow: 1px 1px 0 0 #000000;
-        min-height: 40px;
+        border-width: 3px;
+        box-shadow: 3px 3px 0 0 #000000;
+        min-height: 42px;
         font-size: 0.9rem;
     }
 
     section[data-testid="stSidebar"] .stButton > button:hover,
     section[data-testid="stSidebar"] .stFormSubmitButton > button:hover {
-        box-shadow: 1px 1px 0 0 #000000;
-        background: #f9fafb;
+        box-shadow: 4px 4px 0 0 #000000;
+        background: #374151;
     }
 
-    .rtl-critical-warning {
+    section[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover,
+    section[data-testid="stSidebar"] .stFormSubmitButton > button[kind="primary"]:hover {
+        background: #e0a800 !important;
+        color: #111111 !important;
+        box-shadow: 5px 5px 0 0 #000000 !important;
+    }
+
+    .exhum-critical-warning {
         display: inline-block;
         background: #ff0000;
         color: #ffffff;
@@ -847,11 +1055,11 @@ def apply_styles() -> None:
         padding: 2px 6px;
         font-size: 0.7rem;
         font-weight: 800;
-        animation: rtl-critical-blink 0.6s infinite;
+        animation: exhum-critical-blink 0.6s infinite;
         margin-left: 8px;
     }
 
-    @keyframes rtl-critical-blink {
+    @keyframes exhum-critical-blink {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.3; }
     }
@@ -863,42 +1071,42 @@ def apply_styles() -> None:
             padding-right: 0.6rem;
         }
 
-        .rtl-card {
+        .exhum-card {
             padding: 10px;
         }
 
-        .rtl-topic-hero {
+        .exhum-topic-hero {
             padding: 12px;
             box-shadow: 3px 3px 0 0 #000000;
         }
 
-        .rtl-topic-title {
+        .exhum-topic-title {
             font-size: 1rem;
         }
 
-        .rtl-bubble {
+        .exhum-bubble {
             padding: 10px 12px;
             font-size: 0.9rem;
             box-shadow: 3px 3px 0 0 #000000;
         }
 
-        .rtl-meta {
+        .exhum-meta {
             margin-left: 0;
             display: block;
             margin-top: 4px;
         }
 
-        .rtl-avatar {
+        .exhum-avatar {
             width: 28px;
             height: 28px;
         }
 
-        .rtl-legend-avatar {
+        .exhum-legend-avatar {
             width: 44px;
             height: 44px;
         }
 
-        .rtl-legend-card {
+        .exhum-legend-card {
             padding: 6px;
         }
 

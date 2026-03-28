@@ -1,5 +1,5 @@
 """
-Roundtable Legends: Streamlit Frontend
+EXHUMED: Streamlit Frontend
 Interactive UI for AI discussion platform
 """
 
@@ -22,8 +22,7 @@ from components import (
     get_logo_data_uri,
     load_legends_registry,
     toggle_legend_selection,
-    remove_legend_selection,
-    build_drafted_chips_component,
+    render_drafted_chips_component,
     render_telemetry_panel,
     render_speaker_card_html,
     save_topic_from_inline_editor,
@@ -34,7 +33,7 @@ from components import (
 )
 
 st.set_page_config(
-    page_title="Roundtable Legends",
+    page_title="EXHUMED",
     page_icon="🎭",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -44,6 +43,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 apply_styles()
+
+
+def render_section_title(icon: str, label: str, extra_class: str = "") -> None:
+    class_attr = "exhum-section-title"
+    if extra_class:
+        class_attr += f" {extra_class}"
+    st.markdown(
+        (
+            f"<div class='{class_attr}'>"
+            f"<span class='exhum-section-icon'>{icon}</span>"
+            f"<span class='exhum-sidebar-heading'>{label}</span>"
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 # ============================================================================
@@ -90,6 +104,10 @@ init_session_state()
 
 agents_payload = asyncio.run(api.fetch_agents_from_backend())
 loaded_agents = agents_payload.get("agents", []) if isinstance(agents_payload, dict) else []
+backend_error = (
+    agents_payload.get("_error", "") if isinstance(agents_payload, dict) else ""
+)
+backend_ok, backend_probe_message = asyncio.run(api.probe_backend())
 
 available_agents: Dict[str, str] = {
     a.get("agent_id", ""): a.get("display_name", a.get("agent_id", ""))
@@ -121,45 +139,41 @@ if st.query_params.get("edit_topic") == "1":
     except Exception:
         st.query_params.clear()
 
-remove_legend_qp = st.query_params.get("remove_legend")
-if remove_legend_qp:
-    remove_legend_id = remove_legend_qp[0] if isinstance(remove_legend_qp, list) else str(remove_legend_qp)
-    if remove_legend_id in st.session_state.selected_agents:
-        remove_legend_selection(remove_legend_id)
-    try:
-        del st.query_params["remove_legend"]
-    except Exception:
-        st.query_params.clear()
-    st.rerun()
+if not backend_ok:
+    st.error(
+        backend_error or backend_probe_message or "Backend connection failed."
+    )
+    st.caption(f"Configured backend URL: `{api.BACKEND_URL}`")
 
 
 # ============================================================================
 # LEGEND PICKER DIALOG
 # ============================================================================
 
-@st.dialog("Legend Draft Board", width="large", on_dismiss="rerun")
+@st.dialog(" ", width="large", on_dismiss="rerun")
 def legend_picker_dialog() -> None:
-    st.caption("🧠 Select who joins the council. Click or Tap to select/remove legends.")
+    render_section_title("☷", "Council Draft Board")
+    st.caption("Select which voices enter the chamber.")
     grid_cols = st.columns(4)
 
     for idx, legend in enumerate(legends_catalog):
         aid = legend["agent_id"]
         selected = aid in st.session_state.selected_agents
-        card_class = "rtl-legend-card rtl-legend-selected" if selected else "rtl-legend-card"
+        card_class = "exhum-legend-card exhum-legend-selected" if selected else "exhum-legend-card"
         with grid_cols[idx % 4]:
             avatar_url = get_avatar_url(aid, legend["display_name"])
             name_esc = legend["display_name"].replace("'", "&#39;").replace('"', "&quot;")
             arch_esc = legend["archetype"].replace("'", "&#39;").replace('"', "&quot;")
-            drafted_badge = "<span class='rtl-legend-state-badge'>✅ Drafted</span>" if selected else ""
+            drafted_badge = "<span class='exhum-legend-state-badge'>✅ Drafted</span>" if selected else ""
             draft_button_key = f"draft_remove_{aid}" if selected else f"draft_add_{aid}"
             st.markdown(
                 f"<div class='{card_class}' style='display:block;'>"
                 f"{drafted_badge}"
-                f"<img class='rtl-legend-avatar' src='{avatar_url}' alt='{name_esc}'"
+                f"<img class='exhum-legend-avatar' src='{avatar_url}' alt='{name_esc}'"
                 " style='display:block;width:44px;height:44px;object-fit:cover;"
-                "border:2px solid #000;border-radius:6px;box-shadow:2px 2px 0 0 #000;margin-bottom:6px;' />"
+                "border:2px solid #000;border-radius:0;box-shadow:2px 2px 0 0 #000;margin-bottom:6px;' />"
                 f"<p style='margin:0 0 3px 0;font-weight:700;font-size:0.98rem;color:#111111;'>{name_esc}</p>"
-                f"<p class='rtl-legend-meta'>{arch_esc}</p>"
+                f"<p class='exhum-legend-meta'>{arch_esc}</p>"
                 "</div>",
                 unsafe_allow_html=True,
             )
@@ -188,25 +202,25 @@ speaker_progress_bars: Dict[str, Any] = {}
 with st.sidebar:
     logo_uri = get_logo_data_uri()
     logo_html = (
-        f"<img class='rtl-brand-logo' src='{logo_uri}' alt='Roundtable Legends logo' />"
+        f"<img class='exhum-brand-logo' src='{logo_uri}' alt='EXHUMED logo' />"
         if logo_uri
         else "<div style='text-align:center;font-size:72px;line-height:1;margin:0 0 10px 0;'>🎭</div>"
     )
     st.markdown(logo_html, unsafe_allow_html=True)
     st.markdown(
-        "<div class='rtl-brand-copy'>"
-        "<div class='rtl-brand-title'>EXHUM</div>"
-        "<div class='rtl-brand-subtitle'>Digital Exhumation of Historical Logic.</div>"
+        "<div class='exhum-brand-copy'>"
+        "<div class='exhum-brand-title'>EXHUMED</div>"
+        "<div class='exhum-brand-subtitle'>Digital Exhumation of Historical Logic.</div>"
         "</div>",
         unsafe_allow_html=True,
     )
-    st.markdown("<div class='rtl-sidebar-heading'>⚙️ Council Controls</div>", unsafe_allow_html=True)
+    st.markdown("<div class='exhum-sidebar-heading'>⚙️ Controls</div>", unsafe_allow_html=True)
 
     col_sid, col_btn = st.columns([4, 1])
     with col_sid:
         st.caption(f"Session: {st.session_state.session_id[:12]}...")
     with col_btn:
-        if st.button("🆕", help="Create new session", use_container_width=True):
+        if st.button("⟳", key="new_session_button", help="Create new session", use_container_width=True):
             st.session_state.update({
                 "session_id": str(uuid4()),
                 "messages": [],
@@ -220,39 +234,38 @@ with st.sidebar:
             st.session_state.topic_edit_buffer = st.session_state.topic_input
             st.rerun()
 
-    if st.button("✨ Add Legend", key="open_legend_picker", use_container_width=True, type="primary"):
+    if st.button("🪏 Select Speaker", key="open_legend_picker", use_container_width=True, type="primary"):
         legend_picker_dialog()
 
     st.markdown(
-        "<div class='rtl-sidebar-heading'>🧾 Drafted Council</div>",
+        "<div class='exhum-sidebar-heading'>🧾 Drafted Council</div>",
         unsafe_allow_html=True,
     )
 
     if st.session_state.selected_agents:
-        chips_html = build_drafted_chips_component(
+        render_drafted_chips_component(
             st.session_state.selected_agents, available_agents
         )
-        st.markdown(chips_html, unsafe_allow_html=True)
     else:
         st.markdown(
-            "<div class='rtl-drafted-empty'>NO LEGENDS DRAFTED.<br/>CLICK ABOVE TO START.</div>",
+            "<div class='exhum-drafted-empty'>NO ENTITIES RECOVERED.<br/>CLICK ABOVE TO START.</div>",
             unsafe_allow_html=True,
         )
 
     st.markdown(
-        "<div class='rtl-temperature-controller'>"
-        "<span class='rtl-sidebar-heading'>⚡ DEBATE TEMPERATURE</span></div>",
+        "<div class='exhum-temperature-controller'>"
+        "<span class='exhum-sidebar-heading'>🌀 Logic Entropy</span></div>",
         unsafe_allow_html=True,
     )
     st.markdown(
-        "<span class='rtl-temperature-caption'>Adjusts LLM Temperature for Agent Stochasticity</span>",
+        "<span class='exhum-temperature-caption'>Set the balance between rigid logic and creative unpredictability.</span>",
         unsafe_allow_html=True,
     )
     render_entropy_slider_control()
 
-    start = st.button("▶️ Start", key="start_button", use_container_width=True)
-    stop = st.button("⏸️ Stop", key="pause_button", use_container_width=True)
-    clear = st.button("🧹 Clear", key="clear_button", use_container_width=True)
+    start = st.button("▶️ Start Debate", key="start_button", use_container_width=True)
+    stop = st.button("⏸️ Halt Debate", key="pause_button", use_container_width=True)
+    clear = st.button("🧹 Wipe Debate", key="clear_button", use_container_width=True)
 
     if start:
         if not st.session_state.topic_input.strip():
@@ -280,7 +293,7 @@ with st.sidebar:
         })
         st.success("Messages cleared.")
 
-    if st.button("📄 Export PDF", use_container_width=True):
+    if st.button("📄 Download Transcript", use_container_width=True):
         if not st.session_state.messages:
             st.warning("No messages to export.")
         else:
@@ -290,7 +303,7 @@ with st.sidebar:
                 st.download_button(
                     "Download",
                     data=pdf_bytes,
-                    file_name=f"roundtable_{st.session_state.session_id[:8]}.pdf",
+                    file_name=f"exhumed_{st.session_state.session_id[:8]}.pdf",
                     mime="application/pdf",
                     use_container_width=True,
                 )
@@ -309,9 +322,9 @@ with col_chat:
         st.session_state.topic_edit_buffer = st.session_state.topic_input
         safe_topic = st.session_state.topic_input.replace("<", "&lt;").replace(">", "&gt;")
         st.markdown(
-            f"<div class='rtl-topic-hero'>"
-            f"<a class='rtl-topic-edit-link' href='?edit_topic=1' target='_self' title='Edit discussion theme'>✏️</a>"
-            f"<p class='rtl-topic-title'>{safe_topic}</p>"
+            f"<div class='exhum-topic-hero'>"
+            f"<a class='exhum-topic-edit-link' href='?edit_topic=1' target='_self' title='Edit discussion theme'>✏️</a>"
+            f"<p class='exhum-topic-title'>{safe_topic}</p>"
             "</div>",
             unsafe_allow_html=True,
         )
@@ -331,17 +344,17 @@ with col_chat:
                       on_click=_cancel_topic_edit)
 
     status_live = st.session_state.discussion_started or len(st.session_state.messages) > 0
-    status_class = "rtl-badge-live" if status_live else "rtl-badge-draft"
-    status_text = "Live" if status_live else "Draft"
+    status_class = "exhum-badge-live" if status_live else "exhum-badge-draft"
+    status_text = "Live" if status_live else "Dormant"
     st.markdown(
-        f"<span class='rtl-badge {status_class}'>📡 Status: {status_text}</span>",
+        f"<span class='exhum-badge {status_class}'>📡 Status: {status_text}</span>",
         unsafe_allow_html=True,
     )
 
     with st.container(border=False):
         if not st.session_state.messages:
             st.markdown(
-                "<div class='rtl-empty'><h3>🎬 Ready to start</h3>"
+                "<div class='exhum-empty'><h3>🎬 Ready to start</h3>"
                 "<p>Use ✨ Add Legend and press ▶️ Start</p></div>",
                 unsafe_allow_html=True,
             )
@@ -366,13 +379,13 @@ with col_chat:
 
                 with st.container():
                     st.markdown(
-                        f"<div class='rtl-bubble rtl-bubble-{idx}'>"
-                        f"<div class='rtl-header'>"
-                        f"<div class='rtl-avatar' style='background:{accent}22; color:{accent};'>"
-                        f"<img class='rtl-avatar-img' src='{avatar_url}' alt='{name}' />"
+                        f"<div class='exhum-bubble exhum-bubble-{idx}'>"
+                        f"<div class='exhum-header'>"
+                        f"<div class='exhum-avatar' style='background:{accent}22; color:{accent};'>"
+                        f"<img class='exhum-avatar-img' src='{avatar_url}' alt='{name}' />"
                         "</div>"
-                        f"<span class='rtl-name' style='color:{accent};'>{name}</span>"
-                        f"<span class='rtl-meta'>Turn {turn} - {ts}</span>"
+                        f"<span class='exhum-name' style='color:{accent};'>{name}</span>"
+                        f"<span class='exhum-meta'>Turn {turn} - {ts}</span>"
                         "</div>"
                         f"<p>{body}</p>"
                         "</div>",
@@ -380,7 +393,7 @@ with col_chat:
                     )
                     if len(raw_body) > 280:
                         st.markdown(
-                            f"<span class='rtl-read-more-anchor rtl-read-more-color-{idx}'></span>",
+                            f"<span class='exhum-read-more-anchor exhum-read-more-color-{idx}'></span>",
                             unsafe_allow_html=True,
                         )
                         st.button(
@@ -391,7 +404,7 @@ with col_chat:
                         )
 
 with col_panel:
-    st.markdown("## 👥 Speakers")
+    render_section_title("👥", "Speakers")
 
     agent_counts: Dict[str, int] = {}
     for msg in st.session_state.messages:
@@ -436,19 +449,19 @@ with col_panel:
     else:
         st.caption("No speakers yet.")
 
-    st.markdown("## 📡 Telemetry")
+    render_section_title("📡", "Telemetry")
     render_telemetry_panel(
         messages=st.session_state.messages,
         selected_agents=st.session_state.selected_agents,
         available_agents=available_agents,
-        mode_class="rtl-telemetry-desktop",
+        mode_class="exhum-telemetry-desktop",
     )
 
 render_telemetry_panel(
     messages=st.session_state.messages,
     selected_agents=st.session_state.selected_agents,
     available_agents=available_agents,
-    mode_class="rtl-telemetry-mobile",
+    mode_class="exhum-telemetry-mobile",
 )
 
 
@@ -510,6 +523,6 @@ if st.session_state.discussion_active and st.session_state.selected_agents:
 # ============================================================================
 
 st.markdown(
-    "<div class='rtl-sticky-footer'>EXHUM | Digital Exhumation of Historical Logic.</div>",
+    "<div class='exhum-sticky-footer'>EXHUMED | Digital Exhumation of Historical Logic.</div>",
     unsafe_allow_html=True,
 )

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Roundtable Legends - Setup Script (Unix/macOS)
+# EXHUMED - Setup Script (Unix/macOS)
 set -euo pipefail
 
 echo "=================================================="
-echo " Roundtable Legends - Setup (Unix/macOS)"
+echo " EXHUMED - Setup (Unix/macOS)"
 echo "=================================================="
 echo ""
 

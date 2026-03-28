@@ -1,5 +1,5 @@
 """
-Roundtable Legends – reusable UI helpers and data utilities.
+EXHUMED – reusable UI helpers and data utilities.
 Pure functions + Streamlit widgets; no page-level layout here.
 """
 
@@ -163,13 +163,33 @@ def build_drafted_chips_component(
         legend_name = html.escape(legend_name_raw)
         remove_q = quote_plus(aid)
         chip_html.append(
-            f"<a class='rtl-drafted-chip' href='?remove_legend={remove_q}'"
+            f"<a class='exhum-drafted-chip' href='?remove_legend={remove_q}' target='_self'"
             f" aria-label='Remove {legend_name}'>"
             f"<span class='drafted-chip-label'>{legend_name}</span>"
             "<span class='drafted-chip-x'>✕</span>"
             "</a>"
         )
-    return f"<div class='rtl-drafted-chip-wrap'>{''.join(chip_html)}</div>"
+    return f"<div class='exhum-drafted-chip-wrap'>{''.join(chip_html)}</div>"
+
+
+def render_drafted_chips_component(
+    selected_agents: List[str], available_agents: Dict[str, str]
+) -> None:
+    with st.container(key="drafted_council_chips"):
+        for index in range(0, len(selected_agents), 2):
+            batch = selected_agents[index : index + 2]
+            columns = st.columns(len(batch))
+            for col, aid in zip(columns, batch):
+                legend_name = available_agents.get(aid, aid)
+                with col:
+                    if st.button(
+                        f"{legend_name}  x",
+                        key=f"remove_drafted_{aid}",
+                        help=f"Remove {legend_name} from the drafted council",
+                        use_container_width=True,
+                    ):
+                        remove_legend_selection(aid)
+                        st.rerun()
 
 
 def build_telemetry_snapshot(
@@ -236,45 +256,45 @@ def render_telemetry_panel(
         words = int(row["words"])
         pct = max(2.0, float(row["pct"])) if words > 0 else 0.0
         airtime_html += (
-            "<div class='rtl-air-row'>"
-            f"<span class='rtl-air-label'>{label}</span>"
-            "<div class='rtl-air-track'>"
-            f"<div class='rtl-air-fill' style='width:{pct:.1f}%'></div>"
+            "<div class='exhum-air-row'>"
+            f"<span class='exhum-air-label'>{label}</span>"
+            "<div class='exhum-air-track'>"
+            f"<div class='exhum-air-fill' style='width:{pct:.1f}%'></div>"
             "</div>"
-            f"<span class='rtl-air-value'>{words}W</span>"
+            f"<span class='exhum-air-value'>{words}W</span>"
             "</div>"
         )
     if not airtime_html:
-        airtime_html = "<span class='rtl-telemetry-kicker'>NO AIR-TIME DATA YET</span>"
+        airtime_html = "<span class='exhum-telemetry-kicker'>NO AIR-TIME DATA YET</span>"
 
-    entropy_display = f"<div class='rtl-telemetry-value'>{t['entropy']:.2f}</div>"
+    entropy_display = f"<div class='exhum-telemetry-value'>{t['entropy']:.2f}</div>"
     if st.session_state.target_entropy > 1.0:
-        entropy_display += "<span class='rtl-critical-warning'>⚠️ CRITICAL INSTABILITY</span>"
+        entropy_display += "<span class='exhum-critical-warning'>⚠️ CRITICAL INSTABILITY</span>"
 
     panel_html = (
-        f"<div class='rtl-telemetry-shell {mode_class}'>"
-        "<div class='rtl-telemetry-header'><span class='rtl-telemetry-dot'></span>SYSTEM STATUS: OPTIMAL</div>"
-        "<div class='rtl-telemetry-block'>"
-        "<span class='rtl-telemetry-kicker'>Inference Latency</span>"
-        f"<div class='rtl-telemetry-value'>&gt; LATENCY: <span class='rtl-telemetry-emphasis'>{t['latency_ms']:.0f}ms</span></div>"
+        f"<div class='exhum-telemetry-shell {mode_class}'>"
+        "<div class='exhum-telemetry-header'><span class='exhum-telemetry-dot'></span>SYSTEM STATUS: OPTIMAL</div>"
+        "<div class='exhum-telemetry-block'>"
+        "<span class='exhum-telemetry-kicker'>Inference Latency</span>"
+        f"<div class='exhum-telemetry-value'>&gt; LATENCY: <span class='exhum-telemetry-emphasis'>{t['latency_ms']:.0f}ms</span></div>"
         "</div>"
-        "<div class='rtl-telemetry-block'>"
-        "<span class='rtl-telemetry-kicker'>Context Saturation</span>"
-        f"<div class='rtl-telemetry-value'>{t['estimated_tokens']} / 8192 TOKENS</div>"
-        "<div class='rtl-ctx-track'>"
-        f"<div class='rtl-ctx-fill' style='width:{t['context_pct']:.1f}%'></div>"
+        "<div class='exhum-telemetry-block'>"
+        "<span class='exhum-telemetry-kicker'>Context Saturation</span>"
+        f"<div class='exhum-telemetry-value'>{t['estimated_tokens']} / 8192 TOKENS</div>"
+        "<div class='exhum-ctx-track'>"
+        f"<div class='exhum-ctx-fill' style='width:{t['context_pct']:.1f}%'></div>"
         "</div>"
         "</div>"
-        "<div class='rtl-telemetry-block'>"
-        "<span class='rtl-telemetry-kicker'>Token Burn Rate</span>"
-        f"<div class='rtl-telemetry-value'>&gt; BURN: <span class='rtl-telemetry-emphasis'>${t['burn_usd']:.6f}</span></div>"
+        "<div class='exhum-telemetry-block'>"
+        "<span class='exhum-telemetry-kicker'>Token Burn Rate</span>"
+        f"<div class='exhum-telemetry-value'>&gt; BURN: <span class='exhum-telemetry-emphasis'>${t['burn_usd']:.6f}</span></div>"
         "</div>"
-        "<div class='rtl-telemetry-block'>"
-        f"<span class='rtl-telemetry-kicker'>Debate Entropy (Target: {float(st.session_state.target_entropy):.2f})</span>"
+        "<div class='exhum-telemetry-block'>"
+        f"<span class='exhum-telemetry-kicker'>Debate Entropy (Target: {float(st.session_state.target_entropy):.2f})</span>"
         + entropy_display
         + "</div>"
-        "<div class='rtl-telemetry-block'>"
-        "<span class='rtl-telemetry-kicker'>Agent Air-time</span>"
+        "<div class='exhum-telemetry-block'>"
+        "<span class='exhum-telemetry-kicker'>Agent Air-time</span>"
         f"{airtime_html}"
         "</div>"
         "</div>"
@@ -296,23 +316,23 @@ def render_speaker_card_html(
     safe_status = html.escape(progress_text.upper())
     safe_arch = html.escape(archetype) if archetype else ""
     turns_label = f"{turns} turn{'s' if turns != 1 else ''}"
-    arch_html = f"<span class='rtl-speaker-archetype'>{safe_arch}</span>" if safe_arch else ""
+    arch_html = f"<span class='exhum-speaker-archetype'>{safe_arch}</span>" if safe_arch else ""
     return (
-        f"<div class='rtl-speaker'>"
-        f"<div class='rtl-avatar' style='background:{accent}22; color:{accent}; width:40px; height:40px; font-size:14px;'>"
-        f"<img class='rtl-avatar-img' src='{avatar_url}' alt='{safe_name}' />"
+        f"<div class='exhum-speaker'>"
+        f"<div class='exhum-avatar' style='background:{accent}22; color:{accent}; width:40px; height:40px; font-size:14px;'>"
+        f"<img class='exhum-avatar-img' src='{avatar_url}' alt='{safe_name}' />"
         "</div>"
         "<div style='flex:1;min-width:0;display:flex;flex-direction:column;'>"
         f"<span style='font-size:0.95rem;font-weight:700;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>{safe_name}</span>"
         f"{arch_html}"
         "</div>"
-        "<div class='rtl-speaker-progress-wrap'>"
-        "<div class='rtl-speaker-progress-track'>"
-        f"<div class='rtl-speaker-progress-fill' style='width:{progress_pct:.1f}%;'></div>"
+        "<div class='exhum-speaker-progress-wrap'>"
+        "<div class='exhum-speaker-progress-track'>"
+        f"<div class='exhum-speaker-progress-fill' style='width:{progress_pct:.1f}%;'></div>"
         "</div>"
-        "<div class='rtl-speaker-progress-footer'>"
-        f"<span class='rtl-speaker-progress-text'>{safe_status}</span>"
-        f"<span class='rtl-speaker-count'>{turns_label}</span>"
+        "<div class='exhum-speaker-progress-footer'>"
+        f"<span class='exhum-speaker-progress-text'>{safe_status}</span>"
+        f"<span class='exhum-speaker-count'>{turns_label}</span>"
         "</div>"
         "</div>"
         "</div>"

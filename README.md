@@ -41,6 +41,6 @@ To explore how multi-agent systems behave in structured environments, and how pr
 
 ## Deployment
 
-- Backend: Render  
-- Frontend: Streamlit Cloud  
+- Backend: Railway
+- Frontend: Streamlit Cloud
 - Domain: exhum.ntemposd.me

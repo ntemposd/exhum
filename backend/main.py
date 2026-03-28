@@ -1,5 +1,5 @@
 """
-Roundtable Legends: FastAPI Backend
+EXHUMED: FastAPI Backend
 Decoupled AI discussion platform with dynamic agent registry.
 
 Storage stack:
@@ -77,7 +77,7 @@ redis = Redis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
 vector_index = Index(url=UPSTASH_VECTOR_REST_URL, token=UPSTASH_VECTOR_REST_TOKEN)
 
 app = FastAPI(
-    title="Roundtable Legends",
+    title="EXHUMED",
     version="1.1.0",
     description="Decoupled AI discussion platform with Upstash Redis + Vector",
 )
@@ -447,7 +447,7 @@ async def fetch_session_messages(session_id: UUID) -> List[Dict[str, Any]]:
 @app.get("/")
 async def root() -> Dict[str, Any]:
     return {
-        "name": "Roundtable Legends",
+        "name": "EXHUMED",
         "version": "1.1.0",
         "status": "operational",
         "storage": "upstash-redis-vector",
@@ -634,7 +634,7 @@ async def export_pdf(session_id: UUID) -> FileResponse:
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 10, "Roundtable Legends - Discussion Session", ln=True, align="C")
+        pdf.cell(0, 10, "EXHUMED - Discussion Session", ln=True, align="C")
 
         pdf.set_font("Arial", "", 10)
         pdf.cell(0, 5, f"Session ID: {session_id}", ln=True)
@@ -658,12 +658,12 @@ async def export_pdf(session_id: UUID) -> FileResponse:
             pdf.multi_cell(0, 4, text)
             pdf.ln(2)
 
-        pdf_path = os.path.join(tempfile.gettempdir(), f"roundtable_{session_id}.pdf")
+        pdf_path = os.path.join(tempfile.gettempdir(), f"exhumed_{session_id}.pdf")
         pdf.output(pdf_path)
 
         return FileResponse(
             path=pdf_path,
-            filename=f"roundtable_discussion_{session_id}.pdf",
+            filename=f"exhumed_discussion_{session_id}.pdf",
             media_type="application/pdf",
         )
     except HTTPException:

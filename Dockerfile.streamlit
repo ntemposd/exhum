@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 LABEL maintainer="Backend Architect"
-LABEL description="Roundtable Legends - Streamlit Frontend"
+LABEL description="EXHUMED - Streamlit Frontend"
 
 # Set working directory
 WORKDIR /app

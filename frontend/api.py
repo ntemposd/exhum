@@ -120,22 +120,40 @@ async def push_session_topic(session_id: str, topic: str) -> bool:
         return False
 
 
+async def clear_session(session_id: str) -> bool:
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.delete(
+                f"{BACKEND_URL}/sessions/{session_id}",
+                timeout=10,
+            )
+            response.raise_for_status()
+            return True
+    except Exception as exc:
+        logger.warning("Failed to clear session %s on backend: %s", session_id, exc)
+        return False
+
+
 async def process_agent_turn(
     session_id: str,
     topic: str,
     agent_id: str,
     temperature: float = 0.7,
+    turn_number: Optional[int] = None,
 ) -> Optional[dict]:
     try:
         async with httpx.AsyncClient() as client:
+            payload = {
+                "session_id": session_id,
+                "topic": topic,
+                "agent_id": agent_id,
+                "temperature": temperature,
+            }
+            if turn_number is not None:
+                payload["turn_number"] = turn_number
             response = await client.post(
                 f"{BACKEND_URL}/process-turn",
-                json={
-                    "session_id": session_id,
-                    "topic": topic,
-                    "agent_id": agent_id,
-                    "temperature": temperature,
-                },
+                json=payload,
                 timeout=REQUEST_TIMEOUT,
             )
             response.raise_for_status()

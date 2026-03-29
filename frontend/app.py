@@ -242,9 +242,11 @@ with st.sidebar:
                 "messages": [],
                 "expanded_message_keys": [],
                 "speaker_progress": {},
+                "turn_count": 0,
                 "discussion_active": False,
                 "discussion_started": False,
                 "topic_input": "The future of AI in society",
+                "topic_edit_mode": False,
                 "topic_loaded_for_session": "",
             })
             st.session_state.topic_edit_buffer = st.session_state.topic_input
@@ -289,6 +291,10 @@ with st.sidebar:
         elif not st.session_state.selected_agents:
             st.error("Draft at least one legend.")
         else:
+            topic_to_run = st.session_state.topic_input.strip()
+            st.session_state.topic_input = topic_to_run
+            st.session_state.topic_edit_buffer = topic_to_run
+            asyncio.run(api.push_session_topic(st.session_state.session_id, topic_to_run))
             st.session_state.round_temperature = float(st.session_state.target_entropy)
             st.session_state.discussion_active = True
             st.session_state.discussion_started = True
@@ -300,6 +306,7 @@ with st.sidebar:
         st.info("Round paused.")
 
     if clear:
+        clear_ok = asyncio.run(api.clear_session(st.session_state.session_id))
         st.session_state.update({
             "messages": [],
             "expanded_message_keys": [],
@@ -310,7 +317,10 @@ with st.sidebar:
             "topic_edit_mode": False,
         })
         st.session_state.topic_edit_buffer = st.session_state.topic_input
-        st.success("Messages cleared.")
+        if clear_ok:
+            st.success("Debate cleared.")
+        else:
+            st.warning("Debate cleared locally, but backend cleanup failed.")
 
     if st.button("📄 Download Transcript", use_container_width=True):
         if not st.session_state.messages:
@@ -533,7 +543,9 @@ if st.session_state.discussion_active and st.session_state.selected_agents:
             )
 
     async def run_round() -> None:
+        topic = st.session_state.topic_input
         temperature = float(st.session_state.round_temperature)
+        next_turn_number = int(st.session_state.turn_count) + 1
         for agent_id in st.session_state.selected_agents:
             st.session_state.speaker_progress[agent_id] = 0.25
             _update_card(agent_id, 0.25, "processing...")
@@ -541,9 +553,10 @@ if st.session_state.discussion_active and st.session_state.selected_agents:
             turn_started_at = time.perf_counter()
             response = await api.process_agent_turn(
                 session_id=st.session_state.session_id,
-                topic=st.session_state.topic_input,
+                topic=topic,
                 agent_id=agent_id,
                 temperature=temperature,
+                turn_number=next_turn_number,
             )
             st.session_state.last_inference_latency_ms = (time.perf_counter() - turn_started_at) * 1000.0
 
@@ -556,6 +569,7 @@ if st.session_state.discussion_active and st.session_state.selected_agents:
                     "created_at": response.get("created_at", datetime.utcnow().isoformat()),
                 })
                 st.session_state.turn_count += 1
+                next_turn_number += 1
                 update_debate_entropy()
                 st.session_state.speaker_progress[agent_id] = 1.0
                 _update_card(agent_id, 1.0, "done", extra_turns=1)

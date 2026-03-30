@@ -42,7 +42,7 @@ def get_backend_url() -> str:
 BACKEND_URL = get_backend_url()
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=120, show_spinner=False)
 def _probe_backend_cached(backend_url: str) -> Tuple[bool, str]:
     try:
         with httpx.Client() as client:
@@ -62,7 +62,7 @@ def _probe_backend_cached(backend_url: str) -> Tuple[bool, str]:
         )
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def _fetch_agents_from_backend_cached(backend_url: str) -> Dict[str, Any]:
     try:
         with httpx.Client() as client:
@@ -86,6 +86,62 @@ def _fetch_agents_from_backend_cached(backend_url: str) -> Dict[str, Any]:
 
 async def probe_backend() -> Tuple[bool, str]:
     return _probe_backend_cached(BACKEND_URL)
+
+
+@st.cache_data(ttl=45, show_spinner=False)
+def _fetch_services_status_cached(backend_url: str) -> Dict[str, Any]:
+    try:
+        with httpx.Client() as client:
+            response = client.get(f"{backend_url}/services-status", timeout=20)
+            response.raise_for_status()
+            data = response.json()
+            return data if isinstance(data, dict) else {"status": "DEGRADED", "services": []}
+    except Exception as exc:
+        logger.warning("Error fetching service status: %s", exc)
+        return {
+            "status": "DEGRADED",
+            "services": [
+                {
+                    "name": "Redis",
+                    "status": "OFFLINE",
+                    "latency_ms": None,
+                    "detail": "Status check unavailable",
+                },
+                {
+                    "name": "Vector (Upstash)",
+                    "status": "OFFLINE",
+                    "latency_ms": None,
+                    "detail": "Status check unavailable",
+                },
+                {
+                    "name": "Inference (LLM)",
+                    "status": "OFFLINE",
+                    "latency_ms": None,
+                    "detail": "Status check unavailable",
+                },
+            ],
+        }
+
+
+async def fetch_services_status() -> Dict[str, Any]:
+    return _fetch_services_status_cached(BACKEND_URL)
+
+
+@st.cache_data(ttl=5, show_spinner=False)
+def _fetch_latest_telemetry_cached(backend_url: str) -> Dict[str, Any]:
+    try:
+        with httpx.Client() as client:
+            response = client.get(f"{backend_url}/telemetry/latest", timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            return data if isinstance(data, dict) else {"status": "idle", "metrics": None}
+    except Exception as exc:
+        logger.warning("Error fetching latest telemetry: %s", exc)
+        return {"status": "idle", "metrics": None}
+
+
+async def fetch_latest_telemetry() -> Dict[str, Any]:
+    return _fetch_latest_telemetry_cached(BACKEND_URL)
 
 
 async def fetch_agents_from_backend() -> Dict[str, List[Dict[str, str]]]:

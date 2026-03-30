@@ -203,6 +203,7 @@ def build_telemetry_snapshot(
     messages: List[Dict[str, Any]],
     selected_agents: List[str],
     available_agents: Dict[str, str],
+    latest_metrics: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     agent_words: Dict[str, int] = {aid: 0 for aid in selected_agents}
     total_words = 0
@@ -214,7 +215,18 @@ def build_telemetry_snapshot(
 
     estimated_tokens = int(total_words / 0.75) if total_words else 0
     context_limit = 8192
-    context_pct = min(100.0, (estimated_tokens / context_limit) * 100.0) if estimated_tokens else 0.0
+    prompt_tokens = 0
+    completion_tokens = 0
+    total_context_tokens = estimated_tokens
+    if latest_metrics:
+        prompt_tokens = int(latest_metrics.get("prompt_tokens") or 0)
+        completion_tokens = int(latest_metrics.get("completion_tokens") or 0)
+        total_context_tokens = int(
+            latest_metrics.get("total_tokens")
+            or (prompt_tokens + completion_tokens)
+            or estimated_tokens
+        )
+    context_pct = min(100.0, (total_context_tokens / context_limit) * 100.0) if total_context_tokens else 0.0
     burn_usd = (estimated_tokens / 1000.0) * 0.0002
 
     st.session_state.estimated_tokens = estimated_tokens
@@ -242,6 +254,9 @@ def build_telemetry_snapshot(
     return {
         "latency_ms": float(st.session_state.last_inference_latency_ms),
         "estimated_tokens": estimated_tokens,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_context_tokens": total_context_tokens,
         "context_pct": context_pct,
         "burn_usd": burn_usd,
         "entropy": float(st.session_state.debate_entropy),
@@ -255,7 +270,55 @@ def render_telemetry_panel(
     available_agents: Dict[str, str],
     mode_class: str,
 ) -> None:
-    t = build_telemetry_snapshot(messages, selected_agents, available_agents)
+    mode_slug = mode_class.replace("-", "_")
+    has_session_activity = bool(messages)
+    latest_telemetry_snapshot: Dict[str, Any] = {"status": "idle", "metrics": None}
+    if has_session_activity:
+        latest_telemetry_snapshot = asyncio.run(api.fetch_latest_telemetry())
+    latest_metrics = latest_telemetry_snapshot.get("metrics") if isinstance(latest_telemetry_snapshot, dict) else None
+    latest_metrics = latest_metrics if isinstance(latest_metrics, dict) else None
+    telemetry_status = (
+        str(latest_telemetry_snapshot.get("status", "idle")).lower()
+        if isinstance(latest_telemetry_snapshot, dict)
+        else "idle"
+    )
+    session_metrics = latest_metrics if has_session_activity else None
+    session_telemetry_status = telemetry_status if has_session_activity else "idle"
+    t = build_telemetry_snapshot(messages, selected_agents, available_agents, session_metrics)
+    services_snapshot = asyncio.run(api.fetch_services_status())
+    st.session_state["services_status_snapshot"] = services_snapshot
+    overall_status = html.escape(str(services_snapshot.get("status", "STANDBY")).upper())
+    overall_status_slug = "".join(
+        ch if ch.isalnum() else "-" for ch in overall_status.lower()
+    ).strip("-") or "standby"
+    service_rows = services_snapshot.get("services", [])
+
+    services_html = ""
+    for service in service_rows:
+        service_name = html.escape(str(service.get("name", "Unknown Service")))
+        service_status = html.escape(str(service.get("status", "OFFLINE")).upper())
+        latency_ms = service.get("latency_ms")
+        latency_label = f"{int(latency_ms)}ms" if isinstance(latency_ms, (int, float)) else "--"
+        detail = str(service.get("detail", "") or "").strip()
+        detail_html = (
+            f"<div class='exhum-service-detail'>{html.escape(detail)}</div>"
+            if detail and service_status != "ONLINE"
+            else ""
+        )
+        status_class = (
+            "exhum-service-online" if service_status == "ONLINE" else "exhum-service-offline"
+        )
+        services_html += (
+            "<div class='exhum-service-row'>"
+            f"<div class='exhum-service-main'><span class='exhum-service-name'>{service_name}</span>"
+            f"<span class='exhum-service-pill {status_class}'>{service_status}</span></div>"
+            f"<div class='exhum-service-latency'>NET RTT: {html.escape(latency_label)}</div>"
+            f"{detail_html}"
+            "</div>"
+        )
+
+    if not services_html:
+        services_html = "<span class='exhum-telemetry-kicker'>OPEN SERVICES TO RUN LIVE CHECKS</span>"
 
     airtime_html = ""
     for row in t["airtime_rows"]:
@@ -268,7 +331,7 @@ def render_telemetry_panel(
             "<div class='exhum-air-track'>"
             f"<div class='exhum-air-fill' style='width:{pct:.1f}%'></div>"
             "</div>"
-            f"<span class='exhum-air-value'>{words}W</span>"
+            f"<span class='exhum-air-value'>{words} WDS</span>"
             "</div>"
         )
     if not airtime_html:
@@ -278,35 +341,96 @@ def render_telemetry_panel(
     if st.session_state.target_entropy > 1.0:
         entropy_display += "<span class='exhum-critical-warning'>⚠️ CRITICAL INSTABILITY</span>"
 
-    panel_html = (
+    if session_metrics and session_telemetry_status == "ok":
+        gen_time_value = session_metrics.get("generation_duration_ms")
+        throughput_value = session_metrics.get("tokens_per_second")
+        ttft_value = session_metrics.get("ttft_ms")
+        neural_rows = [
+            ("GEN TIME", f"{int(gen_time_value)}ms" if isinstance(gen_time_value, (int, float)) else "---"),
+            ("THROUGHPUT", f"{float(throughput_value):.2f} TPS" if isinstance(throughput_value, (int, float)) else "---"),
+            ("TTFT", f"{int(ttft_value)}ms" if isinstance(ttft_value, (int, float)) else "---"),
+        ]
+    else:
+        neural_rows = [
+            ("GEN TIME", "IDLE"),
+            ("THROUGHPUT", "---"),
+            ("TTFT", "---"),
+        ]
+
+    neural_html = "".join(
+        (
+            "<div class='exhum-neural-row'>"
+            f"<span class='exhum-neural-label'>{html.escape(label)}</span>"
+            f"<span class='exhum-neural-value'>{html.escape(value)}</span>"
+            "</div>"
+        )
+        for label, value in neural_rows
+    )
+
+    context_fill_class = "exhum-ctx-fill-green"
+    if t["context_pct"] >= 80.0:
+        context_fill_class = "exhum-ctx-fill-red"
+    elif t["context_pct"] >= 50.0:
+        context_fill_class = "exhum-ctx-fill-yellow"
+
+    remaining_html = (
         f"<div class='exhum-telemetry-shell {mode_class}'>"
-        "<div class='exhum-telemetry-header'><span class='exhum-telemetry-dot'></span>SYSTEM STATUS: OPTIMAL</div>"
         "<div class='exhum-telemetry-block'>"
-        "<span class='exhum-telemetry-kicker'>Inference Latency</span>"
-        f"<div class='exhum-telemetry-value'>&gt; LATENCY: <span class='exhum-telemetry-emphasis'>{t['latency_ms']:.0f}ms</span></div>"
+        "<span class='exhum-telemetry-kicker'>Neural Processing</span>"
+        f"{neural_html}"
         "</div>"
         "<div class='exhum-telemetry-block'>"
         "<span class='exhum-telemetry-kicker'>Context Saturation</span>"
-        f"<div class='exhum-telemetry-value'>{t['estimated_tokens']} / 8192 TOKENS</div>"
+        f"<div class='exhum-telemetry-value exhum-context-label'>PROMPT: {t['prompt_tokens']} | COMP: {t['completion_tokens']} | TOTAL: {t['total_context_tokens']} / 8192</div>"
         "<div class='exhum-ctx-track'>"
-        f"<div class='exhum-ctx-fill' style='width:{t['context_pct']:.1f}%'></div>"
+        f"<div class='exhum-ctx-fill {context_fill_class}' style='width:{t['context_pct']:.1f}%'></div>"
         "</div>"
         "</div>"
         "<div class='exhum-telemetry-block'>"
-        "<span class='exhum-telemetry-kicker'>Token Burn Rate</span>"
-        f"<div class='exhum-telemetry-value'>&gt; BURN: <span class='exhum-telemetry-emphasis'>${t['burn_usd']:.6f}</span></div>"
+        "<span class='exhum-telemetry-kicker'>Session Cost</span>"
+        f"<div class='exhum-telemetry-value'>&gt; COST: <span class='exhum-telemetry-emphasis'>${t['burn_usd']:.6f}</span></div>"
         "</div>"
         "<div class='exhum-telemetry-block'>"
-        f"<span class='exhum-telemetry-kicker'>Debate Entropy (Target: {float(st.session_state.target_entropy):.2f})</span>"
+        f"<span class='exhum-telemetry-kicker'>Semantic Diversity (Target: {float(st.session_state.target_entropy):.2f})</span>"
         + entropy_display
         + "</div>"
         "<div class='exhum-telemetry-block'>"
-        "<span class='exhum-telemetry-kicker'>Agent Air-time</span>"
+        "<span class='exhum-telemetry-kicker'>Vocal Share</span>"
         f"{airtime_html}"
         "</div>"
         "</div>"
     )
-    st.markdown(panel_html, unsafe_allow_html=True)
+    with st.container(key=f"{mode_slug}_system_status_card"):
+        st.markdown(
+            (
+                "<div class='exhum-system-status-shell'>"
+                "<div class='exhum-system-status-summary'>"
+                "<div class='exhum-system-status-left'>"
+                "<span class='exhum-telemetry-dot'></span>"
+                "<span class='exhum-system-status-label'>System Status</span>"
+                "</div>"
+                f"<span class='exhum-system-status-pill exhum-system-status-pill-{overall_status_slug}'>{overall_status}</span>"
+                "</div>"
+                "</div>"
+            ),
+            unsafe_allow_html=True,
+        )
+        with st.container(key=f"{mode_slug}_services_toggle_row"):
+            label_col, toggle_col = st.columns([0.72, 0.28], gap="small")
+            with label_col:
+                st.markdown(
+                    "<div class='exhum-services-toggle-label'>SERVICES</div>",
+                    unsafe_allow_html=True,
+                )
+            with toggle_col:
+                show_services = st.toggle(
+                    "Show Services",
+                    key=f"{mode_slug}_services_toggle",
+                    label_visibility="collapsed",
+                )
+        if show_services:
+            st.markdown(services_html, unsafe_allow_html=True)
+    st.markdown(remaining_html, unsafe_allow_html=True)
 
 
 def render_speaker_card_html(
@@ -317,6 +441,7 @@ def render_speaker_card_html(
     progress: float,
     progress_text: str,
     archetype: str = "",
+    detail_href: str = "",
 ) -> str:
     progress_pct = max(0.0, min(100.0, progress * 100.0))
     safe_name = html.escape(name)
@@ -324,7 +449,7 @@ def render_speaker_card_html(
     safe_arch = html.escape(archetype) if archetype else ""
     turns_label = f"{turns} turn{'s' if turns != 1 else ''}"
     arch_html = f"<span class='exhum-speaker-archetype'>{safe_arch}</span>" if safe_arch else ""
-    return (
+    card_html = (
         f"<div class='exhum-speaker'>"
         f"<div class='exhum-avatar' style='background:{accent}22; color:{accent}; width:40px; height:40px; font-size:14px;'>"
         f"<img class='exhum-avatar-img' src='{avatar_url}' alt='{safe_name}' />"
@@ -344,6 +469,9 @@ def render_speaker_card_html(
         "</div>"
         "</div>"
     )
+    if detail_href:
+        return f"<a class='exhum-speaker-link' href='{html.escape(detail_href, quote=True)}' target='_self'>{card_html}</a>"
+    return card_html
 
 
 # ── Entropy slider (fragment-isolated) ───────────────────────────────────────

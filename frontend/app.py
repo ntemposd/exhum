@@ -12,6 +12,7 @@ from typing import Dict, Any
 from uuid import uuid4
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from styles import apply_styles
 import api
@@ -43,6 +44,62 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 apply_styles()
+
+
+def ensure_sidebar_open_on_load() -> None:
+    components.html(
+        """
+        <script>
+        (function () {
+          const SESSION_KEY = "exhumed_sidebar_opened_once";
+          const parentWindow = window.parent;
+          const parentDoc = parentWindow.document;
+
+          function openSidebarIfNeeded() {
+            const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
+            const collapsedControl =
+              parentDoc.querySelector('[data-testid="collapsedControl"] button') ||
+              parentDoc.querySelector('[data-testid="collapsedControl"]');
+
+            if (sessionStorage.getItem(SESSION_KEY) === "1") {
+              return true;
+            }
+
+            if (sidebar && collapsedControl) {
+              collapsedControl.click();
+              sessionStorage.setItem(SESSION_KEY, "1");
+              return true;
+            }
+
+            if (sidebar && !collapsedControl) {
+              sessionStorage.setItem(SESSION_KEY, "1");
+              return true;
+            }
+
+            return false;
+          }
+
+          if (openSidebarIfNeeded()) {
+            return;
+          }
+
+          const observer = new MutationObserver(() => {
+            if (openSidebarIfNeeded()) {
+              observer.disconnect();
+            }
+          });
+
+          observer.observe(parentDoc.body, { childList: true, subtree: true });
+          setTimeout(() => observer.disconnect(), 4000);
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
+ensure_sidebar_open_on_load()
 
 
 def render_section_title(icon: str, label: str, extra_class: str = "") -> None:
@@ -83,6 +140,12 @@ def handle_topic_edit_button_click() -> None:
     open_topic_edit_mode()
 
 
+def _render_message_body(raw_body: str, is_expanded: bool) -> str:
+    if len(raw_body) <= 280 or is_expanded:
+        return html.escape(raw_body)
+    return html.escape(raw_body[:280].rstrip() + "...")
+
+
 # ============================================================================
 # SESSION STATE
 # ============================================================================
@@ -107,6 +170,10 @@ def init_session_state() -> None:
         "estimated_tokens": 0,
         "session_burn_usd": 0.0,
         "target_entropy": 0.7,
+        "current_agent_index": 0,
+        "current_turn_number": 1,
+        "thinking_message_id": "",
+        "thinking_visible": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -130,7 +197,8 @@ loaded_agents = agents_payload.get("agents", []) if isinstance(agents_payload, d
 backend_error = (
     agents_payload.get("_error", "") if isinstance(agents_payload, dict) else ""
 )
-backend_ok, backend_probe_message = asyncio.run(api.probe_backend())
+backend_ok = not bool(backend_error)
+backend_probe_message = ""
 
 available_agents: Dict[str, str] = {
     a.get("agent_id", ""): a.get("display_name", a.get("agent_id", ""))
@@ -149,10 +217,11 @@ if st.session_state.selected_agents:
     st.session_state.default_legends_seeded = True
 
 if st.session_state.topic_loaded_for_session != st.session_state.session_id:
-    backend_topic = asyncio.run(api.fetch_session_topic(st.session_state.session_id))
-    if backend_topic:
-        st.session_state.topic_input = backend_topic
-        st.session_state.topic_edit_buffer = backend_topic
+    if not str(st.session_state.topic_input).strip():
+        backend_topic = asyncio.run(api.fetch_session_topic(st.session_state.session_id))
+        if backend_topic:
+            st.session_state.topic_input = backend_topic
+            st.session_state.topic_edit_buffer = backend_topic
     st.session_state.topic_loaded_for_session = st.session_state.session_id
 
 if not backend_ok:
@@ -188,7 +257,7 @@ def legend_picker_dialog() -> None:
                 f"<img class='exhum-legend-avatar' src='{avatar_url}' alt='{name_esc}'"
                 " style='display:block;width:44px;height:44px;object-fit:cover;"
                 "border:2px solid #000;border-radius:0;box-shadow:2px 2px 0 0 #000;margin-bottom:6px;' />"
-                f"<p style='margin:0 0 3px 0;font-weight:700;font-size:0.98rem;color:#111111;'>{name_esc}</p>"
+                f"<p class='exhum-legend-name'>{name_esc}</p>"
                 f"<p class='exhum-legend-meta'>{arch_esc}</p>"
                 "</div>",
                 unsafe_allow_html=True,
@@ -230,7 +299,7 @@ with st.sidebar:
         "</div>",
         unsafe_allow_html=True,
     )
-    st.markdown("<div class='exhum-sidebar-heading'>⚙️ Controls</div>", unsafe_allow_html=True)
+    st.markdown("<div class='exhum-sidebar-heading'>Controls</div>", unsafe_allow_html=True)
 
     col_sid, col_btn = st.columns([4, 1])
     with col_sid:
@@ -248,6 +317,10 @@ with st.sidebar:
                 "topic_input": "The future of AI in society",
                 "topic_edit_mode": False,
                 "topic_loaded_for_session": "",
+                "current_agent_index": 0,
+                "current_turn_number": 1,
+                "thinking_message_id": "",
+                "thinking_visible": False,
             })
             st.session_state.topic_edit_buffer = st.session_state.topic_input
             st.rerun()
@@ -256,7 +329,7 @@ with st.sidebar:
         legend_picker_dialog()
 
     st.markdown(
-        "<div class='exhum-sidebar-heading'>🧾 Drafted Council</div>",
+        "<div class='exhum-sidebar-heading'>Drafted Council</div>",
         unsafe_allow_html=True,
     )
 
@@ -272,7 +345,7 @@ with st.sidebar:
 
     st.markdown(
         "<div class='exhum-temperature-controller'>"
-        "<span class='exhum-sidebar-heading'>🌀 Logic Entropy</span></div>",
+        "<span class='exhum-sidebar-heading'>Logic Entropy</span></div>",
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -299,10 +372,17 @@ with st.sidebar:
             st.session_state.discussion_active = True
             st.session_state.discussion_started = True
             st.session_state.speaker_progress = {aid: 0.0 for aid in st.session_state.selected_agents}
+            st.session_state.current_agent_index = 0
+            st.session_state.current_turn_number = int(st.session_state.turn_count) + 1
+            st.session_state.thinking_message_id = ""
+            st.session_state.thinking_visible = False
             st.rerun()
 
     if stop:
         st.session_state.discussion_active = False
+        st.session_state.current_agent_index = 0
+        st.session_state.thinking_message_id = ""
+        st.session_state.thinking_visible = False
         st.info("Round paused.")
 
     if clear:
@@ -315,6 +395,10 @@ with st.sidebar:
             "discussion_active": False,
             "discussion_started": False,
             "topic_edit_mode": False,
+            "current_agent_index": 0,
+            "current_turn_number": 1,
+            "thinking_message_id": "",
+            "thinking_visible": False,
         })
         st.session_state.topic_edit_buffer = st.session_state.topic_input
         if clear_ok:
@@ -343,6 +427,19 @@ with st.sidebar:
 # ============================================================================
 
 col_chat, col_panel = st.columns([3, 1])
+agent_counts: Dict[str, int] = {}
+for msg in st.session_state.messages:
+    aid = msg.get("agent_id", "Unknown")
+    if msg.get("is_thinking"):
+        continue
+    agent_counts[aid] = agent_counts.get(aid, 0) + 1
+
+if st.session_state.selected_agents:
+    display_speakers = list(st.session_state.selected_agents)
+elif agent_counts:
+    display_speakers = [aid for aid, _ in sorted(agent_counts.items(), key=lambda x: -x[1])]
+else:
+    display_speakers = []
 
 with col_chat:
     topic_locked = st.session_state.discussion_started or len(st.session_state.messages) > 0
@@ -411,6 +508,26 @@ with col_chat:
         unsafe_allow_html=True,
     )
 
+    if display_speakers:
+        for aid in display_speakers:
+            stored_name = next(
+                (m.get("display_name") for m in st.session_state.messages
+                 if m.get("agent_id") == aid and m.get("display_name")),
+                None,
+            )
+            name = available_agents.get(aid) or stored_name or aid
+            idx = get_style_index(aid)
+            accent = ACCENT_COLORS[idx]
+            avatar_url = get_avatar_url(aid, name)
+            archetype = legend_map.get(aid, {}).get("archetype", "")
+            speaker_progress_bars[aid] = {
+                "name": name,
+                "avatar_url": avatar_url,
+                "accent": accent,
+                "turns": agent_counts.get(aid, 0),
+                "archetype": archetype,
+            }
+
     with st.container(border=False):
         if not st.session_state.messages:
             st.markdown(
@@ -425,33 +542,44 @@ with col_chat:
                 idx = get_style_index(aid)
                 accent = ACCENT_COLORS[idx]
                 avatar_url = get_avatar_url(aid, name)
-
                 ts = msg.get("created_at", "")
                 if ts and "T" in ts:
                     ts = ts.split("T")[1][:5]
 
                 turn = msg.get("turn_number", "-")
                 raw_body = str(msg.get("message", ""))
+                is_thinking = bool(msg.get("is_thinking"))
                 message_key = f"{aid}-{turn}-{message_index}"
                 is_expanded = message_key in st.session_state.expanded_message_keys
-                display_body = raw_body if (len(raw_body) <= 280 or is_expanded) else raw_body[:280].rstrip() + "..."
-                body = html.escape(display_body)
+                body = _render_message_body(raw_body, is_expanded)
+                progress = float(st.session_state.speaker_progress.get(aid, 0.0))
+                thinking_text = "<span class='exhum-thinking-pulse'>Agent is formulating logic...</span>"
+                thinking_progress_html = ""
+                if is_thinking:
+                    thinking_progress_html = (
+                        "<div class='exhum-bubble-progress-track exhum-bubble-progress-track-inline'>"
+                        f"<div class='exhum-bubble-progress-fill' style='width:{max(8.0, progress * 100.0):.1f}%'></div>"
+                        "</div>"
+                    )
 
                 with st.container():
                     st.markdown(
                         f"<div class='exhum-bubble exhum-bubble-{idx}'>"
-                        f"<div class='exhum-header'>"
+                        f"{thinking_progress_html}"
+                        f"<div class='exhum-header exhum-bubble-header-static'>"
                         f"<div class='exhum-avatar' style='background:{accent}22; color:{accent};'>"
                         f"<img class='exhum-avatar-img' src='{avatar_url}' alt='{name}' />"
                         "</div>"
+                        "<div class='exhum-bubble-header-main'>"
                         f"<span class='exhum-name' style='color:{accent};'>{name}</span>"
                         f"<span class='exhum-meta'>Turn {turn} - {ts}</span>"
                         "</div>"
-                        f"<p>{body}</p>"
+                        "</div>"
+                        f"<p>{thinking_text if is_thinking else body}</p>"
                         "</div>",
                         unsafe_allow_html=True,
                     )
-                    if len(raw_body) > 280:
+                    if (not is_thinking) and len(raw_body) > 280:
                         st.markdown(
                             f"<span class='exhum-read-more-anchor exhum-read-more-color-{idx}'></span>",
                             unsafe_allow_html=True,
@@ -464,51 +592,6 @@ with col_chat:
                         )
 
 with col_panel:
-    render_section_title("👥", "Speakers")
-
-    agent_counts: Dict[str, int] = {}
-    for msg in st.session_state.messages:
-        aid = msg.get("agent_id", "Unknown")
-        agent_counts[aid] = agent_counts.get(aid, 0) + 1
-
-    if st.session_state.selected_agents:
-        display_speakers = list(st.session_state.selected_agents)
-    elif agent_counts:
-        display_speakers = [aid for aid, _ in sorted(agent_counts.items(), key=lambda x: -x[1])]
-    else:
-        display_speakers = []
-
-    if display_speakers:
-        for aid in display_speakers:
-            count = agent_counts.get(aid, 0)
-            stored_name = next(
-                (m.get("display_name") for m in st.session_state.messages
-                 if m.get("agent_id") == aid and m.get("display_name")),
-                None,
-            )
-            name = available_agents.get(aid) or stored_name or aid
-            idx = get_style_index(aid)
-            accent = ACCENT_COLORS[idx]
-            avatar_url = get_avatar_url(aid, name)
-            archetype = legend_map.get(aid, {}).get("archetype", "")
-            current_progress = float(st.session_state.speaker_progress.get(aid, 0.0))
-            progress_text = "done" if current_progress >= 1.0 else "waiting"
-            slot = st.empty()
-            slot.markdown(
-                render_speaker_card_html(
-                    name=name, avatar_url=avatar_url, accent=accent,
-                    turns=count, progress=current_progress, progress_text=progress_text,
-                    archetype=archetype,
-                ),
-                unsafe_allow_html=True,
-            )
-            speaker_progress_bars[aid] = {
-                "slot": slot, "name": name, "avatar_url": avatar_url,
-                "accent": accent, "turns": count, "archetype": archetype,
-            }
-    else:
-        st.caption("No speakers yet.")
-
     render_section_title("📡", "Telemetry")
     render_telemetry_panel(
         messages=st.session_state.messages,
@@ -533,52 +616,84 @@ if st.session_state.discussion_active and st.session_state.selected_agents:
     def _update_card(aid: str, progress: float, text: str, extra_turns: int = 0) -> None:
         if aid in speaker_progress_bars:
             d = speaker_progress_bars[aid]
-            d["slot"].markdown(
-                render_speaker_card_html(
-                    name=d["name"], avatar_url=d["avatar_url"], accent=d["accent"],
-                    turns=d["turns"] + extra_turns, progress=progress, progress_text=text,
-                    archetype=d.get("archetype", ""),
-                ),
-                unsafe_allow_html=True,
-            )
+            d["turns"] = d.get("turns", 0) + extra_turns
 
-    async def run_round() -> None:
+    current_index = int(st.session_state.current_agent_index)
+    if current_index >= len(st.session_state.selected_agents):
+        st.session_state.discussion_active = False
+        st.session_state.current_agent_index = 0
+        st.session_state.current_turn_number = int(st.session_state.turn_count) + 1
+        st.session_state.thinking_message_id = ""
+        st.session_state.thinking_visible = False
+        st.rerun()
+
+    current_agent_id = st.session_state.selected_agents[current_index]
+
+    if not st.session_state.thinking_visible:
+        display_name = available_agents.get(current_agent_id) or current_agent_id
+        st.session_state.speaker_progress[current_agent_id] = 0.25
+        st.session_state.messages.append({
+            "id": f"thinking-{current_agent_id}-{st.session_state.current_turn_number}",
+            "agent_id": current_agent_id,
+            "display_name": display_name,
+            "message": "",
+            "turn_number": st.session_state.current_turn_number,
+            "created_at": datetime.utcnow().isoformat(),
+            "is_thinking": True,
+        })
+        st.session_state.thinking_message_id = f"thinking-{current_agent_id}-{st.session_state.current_turn_number}"
+        st.session_state.thinking_visible = True
+        _update_card(current_agent_id, 0.25, "thinking...")
+        st.rerun()
+
+    async def run_current_turn() -> None:
         topic = st.session_state.topic_input
         temperature = float(st.session_state.round_temperature)
-        next_turn_number = int(st.session_state.turn_count) + 1
-        for agent_id in st.session_state.selected_agents:
-            st.session_state.speaker_progress[agent_id] = 0.25
-            _update_card(agent_id, 0.25, "processing...")
+        turn_started_at = time.perf_counter()
+        response = await api.process_agent_turn(
+            session_id=st.session_state.session_id,
+            topic=topic,
+            agent_id=current_agent_id,
+            temperature=temperature,
+            turn_number=int(st.session_state.current_turn_number),
+        )
+        st.session_state.last_inference_latency_ms = (time.perf_counter() - turn_started_at) * 1000.0
 
-            turn_started_at = time.perf_counter()
-            response = await api.process_agent_turn(
-                session_id=st.session_state.session_id,
-                topic=topic,
-                agent_id=agent_id,
-                temperature=temperature,
-                turn_number=next_turn_number,
-            )
-            st.session_state.last_inference_latency_ms = (time.perf_counter() - turn_started_at) * 1000.0
+        target_id = st.session_state.thinking_message_id
+        target_message = next(
+            (msg for msg in reversed(st.session_state.messages) if msg.get("id") == target_id),
+            None,
+        )
 
-            if response:
-                st.session_state.messages.append({
-                    "agent_id": response.get("agent_id"),
-                    "display_name": response.get("display_name", ""),
-                    "message": response.get("message"),
-                    "turn_number": response.get("turn_number"),
-                    "created_at": response.get("created_at", datetime.utcnow().isoformat()),
+        if response and target_message is not None:
+            target_message.update({
+                "agent_id": response.get("agent_id"),
+                "display_name": response.get("display_name", ""),
+                "message": response.get("message"),
+                "turn_number": response.get("turn_number"),
+                "created_at": response.get("created_at", datetime.utcnow().isoformat()),
+                "is_thinking": False,
+            })
+            st.session_state.turn_count += 1
+            update_debate_entropy()
+            st.session_state.speaker_progress[current_agent_id] = 1.0
+            _update_card(current_agent_id, 1.0, "done", extra_turns=1)
+        else:
+            if target_message is not None:
+                target_message.update({
+                    "message": "Agent failed to produce a response.",
+                    "is_thinking": False,
+                    "created_at": datetime.utcnow().isoformat(),
                 })
-                st.session_state.turn_count += 1
-                next_turn_number += 1
-                update_debate_entropy()
-                st.session_state.speaker_progress[agent_id] = 1.0
-                _update_card(agent_id, 1.0, "done", extra_turns=1)
-            else:
-                st.session_state.speaker_progress[agent_id] = 0.0
-                _update_card(agent_id, 0.0, "failed")
+            st.session_state.speaker_progress[current_agent_id] = 0.0
+            _update_card(current_agent_id, 0.0, "failed")
 
-    asyncio.run(run_round())
-    st.session_state.discussion_active = False
+        st.session_state.current_agent_index += 1
+        st.session_state.current_turn_number = int(st.session_state.turn_count) + 1
+        st.session_state.thinking_message_id = ""
+        st.session_state.thinking_visible = False
+
+    asyncio.run(run_current_turn())
     st.rerun()
 
 

@@ -66,18 +66,23 @@ UPSTASH_REDIS_REST_URL = os.getenv("UPSTASH_REDIS_REST_URL")
 UPSTASH_REDIS_REST_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN")
 UPSTASH_VECTOR_REST_URL = os.getenv("UPSTASH_VECTOR_REST_URL")
 UPSTASH_VECTOR_REST_TOKEN = os.getenv("UPSTASH_VECTOR_REST_TOKEN")
-HF_TOKEN = os.getenv("HF_TOKEN")
-HF_MODEL_ID = os.getenv("HF_MODEL_ID", "meta-llama/Llama-3.1-8B-Instruct:fastest")
-HF_API_BASE_URL = os.getenv("HF_API_BASE_URL", "https://router.huggingface.co/v1")
+LLM_API_KEY = os.getenv("LLM_API_KEY")
+LLM_MODEL_ID = os.getenv("LLM_MODEL_ID", "llama-3.1-8b-instant")
+LLM_API_BASE_URL = os.getenv("LLM_API_BASE_URL", "https://api.groq.com/openai/v1")
 
-required_env = [
+missing_env: List[str] = []
+for env_name in (
     "UPSTASH_REDIS_REST_URL",
     "UPSTASH_REDIS_REST_TOKEN",
     "UPSTASH_VECTOR_REST_URL",
     "UPSTASH_VECTOR_REST_TOKEN",
-    "HF_TOKEN",
-]
-missing_env = [name for name in required_env if not os.getenv(name)]
+):
+    if not os.getenv(env_name):
+        missing_env.append(env_name)
+
+if not LLM_API_KEY:
+    missing_env.append("LLM_API_KEY")
+
 if missing_env:
     raise ValueError(f"Missing required environment variables: {', '.join(missing_env)}")
 
@@ -139,11 +144,30 @@ class TelemetryData(BaseModel):
     word_count: int = Field(..., description="Total word count in generated response")
 
 
+class ExecutionMetrics(BaseModel):
+    generation_duration_ms: Optional[int] = Field(None, description="Provider-reported generation duration in milliseconds")
+    prompt_tokens: Optional[int] = Field(None, description="Prompt tokens consumed")
+    completion_tokens: Optional[int] = Field(None, description="Completion tokens generated")
+    total_tokens: Optional[int] = Field(None, description="Total tokens consumed")
+    tokens_per_second: Optional[float] = Field(None, description="Completion throughput in tokens per second")
+    ttft_ms: Optional[int] = Field(None, description="Time to first token in milliseconds, if available")
+    network_rtt_ms: Optional[int] = Field(None, description="Observed network round-trip for the inference request")
+    provider: str = Field(default="llm", description="Current inference provider label")
+    updated_at: datetime = Field(..., description="Timestamp of the latest execution metrics")
+
+
 class GenerateResponse(BaseModel):
     response: str = Field(..., description="Generated response text")
     telemetry: TelemetryData = Field(..., description="Telemetry metrics")
     message_id: Optional[UUID] = Field(None, description="Message ID if persisted")
     turn_number: Optional[int] = Field(None, description="Turn number if persisted")
+
+
+class ServiceStatus(BaseModel):
+    name: str = Field(..., description="Display name of the service")
+    status: str = Field(..., description="ONLINE or OFFLINE")
+    latency_ms: Optional[int] = Field(None, description="Observed latency in milliseconds")
+    detail: Optional[str] = Field(None, description="Optional diagnostic detail")
 
 
 def _clean_text(text: str) -> str:
@@ -309,6 +333,176 @@ def _extract_legacy_message_key(raw_entry: Any) -> Optional[str]:
     return f"message:{decoded_entry}" if decoded_entry else None
 
 
+def _safe_int(value: Any) -> Optional[int]:
+    try:
+        if value is None or value == "":
+            return None
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_float(value: Any) -> Optional[float]:
+    try:
+        if value is None or value == "":
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_ttft_ms(headers: httpx.Headers) -> Optional[int]:
+    candidate_keys = (
+        "x-ttft-ms",
+        "x-ttft",
+        "ttft-ms",
+        "openai-processing-ms",
+        "x-openai-processing-ms",
+    )
+    for key in candidate_keys:
+        value = headers.get(key)
+        parsed = _safe_int(value)
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _extract_execution_metrics(
+    data: Dict[str, Any],
+    headers: httpx.Headers,
+    network_rtt_ms: int,
+) -> ExecutionMetrics:
+    usage = data.get("usage") if isinstance(data, dict) else {}
+    usage = usage if isinstance(usage, dict) else {}
+
+    prompt_tokens = _safe_int(usage.get("prompt_tokens"))
+    completion_tokens = _safe_int(usage.get("completion_tokens"))
+    total_tokens = _safe_int(usage.get("total_tokens"))
+
+    generation_duration_s = (
+        _safe_float(usage.get("total_time"))
+        or _safe_float(usage.get("completion_time"))
+    )
+    generation_duration_ms = (
+        int(generation_duration_s * 1000) if generation_duration_s is not None else None
+    )
+
+    tokens_per_second: Optional[float] = None
+    if completion_tokens and generation_duration_s and generation_duration_s > 0:
+        tokens_per_second = round(completion_tokens / generation_duration_s, 2)
+
+    return ExecutionMetrics(
+        generation_duration_ms=generation_duration_ms,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        tokens_per_second=tokens_per_second,
+        ttft_ms=_extract_ttft_ms(headers),
+        network_rtt_ms=network_rtt_ms,
+        provider="llm",
+        updated_at=datetime.now(timezone.utc),
+    )
+
+
+def save_latest_execution_metrics(metrics: ExecutionMetrics) -> None:
+    try:
+        redis.set("telemetry:latest", metrics.model_dump_json())
+    except Exception as exc:
+        logger.warning("Unable to persist latest execution telemetry: %s", exc)
+
+
+def fetch_latest_execution_metrics() -> Optional[ExecutionMetrics]:
+    try:
+        payload = redis.get("telemetry:latest")
+        if not payload:
+            return None
+        raw = json.loads(_decode_redis_value(payload))
+        if isinstance(raw, dict):
+            return ExecutionMetrics.model_validate(raw)
+    except Exception as exc:
+        logger.warning("Unable to load latest execution telemetry: %s", exc)
+    return None
+
+
+async def check_services() -> Dict[str, Any]:
+    services: List[ServiceStatus] = []
+
+    redis_started = time.perf_counter()
+    try:
+        redis.ping()
+        redis_latency_ms = int((time.perf_counter() - redis_started) * 1000)
+        services.append(
+            ServiceStatus(
+                name="Redis",
+                status="ONLINE",
+                latency_ms=redis_latency_ms,
+            )
+        )
+    except Exception as exc:
+        logger.warning("Redis health check failed: %s", exc)
+        services.append(
+            ServiceStatus(
+                name="Redis",
+                status="OFFLINE",
+                detail=str(exc)[:160],
+            )
+        )
+
+    vector_started = time.perf_counter()
+    try:
+        vector_index.info()
+        vector_latency_ms = int((time.perf_counter() - vector_started) * 1000)
+        services.append(
+            ServiceStatus(
+                name="Vector (Upstash)",
+                status="ONLINE",
+                latency_ms=vector_latency_ms,
+            )
+        )
+    except Exception as exc:
+        logger.warning("Upstash Vector health check failed: %s", exc)
+        services.append(
+            ServiceStatus(
+                name="Vector (Upstash)",
+                status="OFFLINE",
+                detail=str(exc)[:160],
+            )
+        )
+
+    inference_started = time.perf_counter()
+    try:
+        headers = {"Authorization": f"Bearer {LLM_API_KEY}"}
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(f"{LLM_API_BASE_URL}/models", headers=headers)
+            response.raise_for_status()
+        inference_latency_ms = int((time.perf_counter() - inference_started) * 1000)
+        services.append(
+            ServiceStatus(
+                name="Inference (LLM)",
+                status="ONLINE",
+                latency_ms=inference_latency_ms,
+            )
+        )
+    except Exception as exc:
+        logger.warning("Inference health check failed: %s", exc)
+        services.append(
+            ServiceStatus(
+                name="Inference (LLM)",
+                status="OFFLINE",
+                detail=str(exc)[:160],
+            )
+        )
+
+    overall_status = (
+        "OPTIMAL" if all(service.status == "ONLINE" for service in services) else "DEGRADED"
+    )
+    return {
+        "status": overall_status,
+        "services": [service.model_dump() for service in services],
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 async def fetch_agent_config(agent_id: str) -> AgentConfig:
     try:
         cached_config = get_cached_agent_config(agent_id)
@@ -415,11 +609,11 @@ def build_context_prompt(topic: str, context_messages: List[Dict[str, Any]], age
     )
 
 
-async def call_huggingface_api(prompt: str, agent_config: AgentConfig) -> str:
-    api_url = f"{HF_API_BASE_URL}/chat/completions"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+async def call_llm_api(prompt: str, agent_config: AgentConfig) -> tuple[str, ExecutionMetrics]:
+    api_url = f"{LLM_API_BASE_URL}/chat/completions"
+    headers = {"Authorization": f"Bearer {LLM_API_KEY}"}
     payload = {
-        "model": HF_MODEL_ID,
+        "model": LLM_MODEL_ID,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": agent_config.temperature,
         "max_tokens": agent_config.max_tokens,
@@ -428,10 +622,12 @@ async def call_huggingface_api(prompt: str, agent_config: AgentConfig) -> str:
     }
 
     try:
+        request_started = time.perf_counter()
         async with httpx.AsyncClient(timeout=90.0) as client:
             response = await client.post(api_url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
+            network_rtt_ms = int((time.perf_counter() - request_started) * 1000)
 
         if isinstance(data, dict):
             choices = data.get("choices") or []
@@ -444,7 +640,8 @@ async def call_huggingface_api(prompt: str, agent_config: AgentConfig) -> str:
                         for item in content
                     )
                 content = str(content).strip()
-                return content or "I need a moment to process this turn."
+                metrics = _extract_execution_metrics(data, response.headers, network_rtt_ms)
+                return content or "I need a moment to process this turn.", metrics
 
         logger.error("Unexpected LLM API payload: %s", data)
         raise HTTPException(status_code=500, detail="Invalid response from LLM API")
@@ -462,7 +659,7 @@ async def call_huggingface_api(prompt: str, agent_config: AgentConfig) -> str:
             error_text = exc.response.text[:300] if exc.response is not None else "No response body"
 
         logger.error(
-            "Hugging Face status error: status=%s, body=%s",
+            "LLM provider status error: status=%s, body=%s",
             exc.response.status_code if exc.response is not None else "unknown",
             error_text,
         )
@@ -471,7 +668,7 @@ async def call_huggingface_api(prompt: str, agent_config: AgentConfig) -> str:
             detail=f"LLM API error ({exc.response.status_code}): {error_text}",
         )
     except httpx.HTTPError as exc:
-        logger.error("Hugging Face transport error: %s", exc)
+        logger.error("LLM provider transport error: %s", exc)
         raise HTTPException(status_code=502, detail="Error communicating with LLM API")
 
 
@@ -569,6 +766,19 @@ async def root() -> Dict[str, Any]:
     }
 
 
+@app.get("/services-status")
+async def services_status() -> Dict[str, Any]:
+    return await check_services()
+
+
+@app.get("/telemetry/latest")
+async def latest_telemetry() -> Dict[str, Any]:
+    metrics = fetch_latest_execution_metrics()
+    if metrics is None:
+        return {"status": "idle", "metrics": None}
+    return {"status": "ok", "metrics": metrics.model_dump(mode="json")}
+
+
 @app.get("/sessions/{session_id}/topic")
 async def get_session_topic(session_id: UUID) -> Dict[str, Any]:
     topic = await fetch_session_topic(session_id)
@@ -650,7 +860,8 @@ async def process_turn(request: ProcessTurnRequest) -> ProcessTurnResponse:
     turn_number = request.turn_number or (len(context_messages) + 1)
 
     prompt = build_context_prompt(request.topic, context_messages, agent_config)
-    generated_message = await call_huggingface_api(prompt, agent_config)
+    generated_message, execution_metrics = await call_llm_api(prompt, agent_config)
+    save_latest_execution_metrics(execution_metrics)
 
     stored_message = await save_message_to_storage(
         session_id=request.session_id,
@@ -696,10 +907,11 @@ async def generate(request: GenerateRequest) -> GenerateResponse:
         turn_number = len(context_messages) + 1
 
         prompt = build_context_prompt(request.topic, context_messages, agent_config)
-        generated_message = await call_huggingface_api(prompt, agent_config)
+        generated_message, execution_metrics = await call_llm_api(prompt, agent_config)
+        save_latest_execution_metrics(execution_metrics)
         
         # Calculate latency in milliseconds
-        latency_ms = int((time.time() - start_time) * 1000)
+        latency_ms = execution_metrics.generation_duration_ms or int((time.time() - start_time) * 1000)
         
         # Calculate Jaccard Entropy (0.0 for first turn, or compared to previous response)
         if request.previous_response:

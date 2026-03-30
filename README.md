@@ -18,7 +18,7 @@ Built as an experiment in orchestrating LLM agents, managing context, and design
 
 - **Backend:** FastAPI orchestrating asynchronous LLM calls  
 - **Frontend:** Streamlit interface for interaction and monitoring  
-- **LLM Engine:** Llama 3 via Groq for low-latency inference  
+- **LLM Engine:** Configurable OpenAI-compatible LLM provider for low-latency inference  
 
 Each agent follows a constrained dialogue loop (max 60 words), ensuring focused responses and preventing context drift.
 
@@ -59,7 +59,7 @@ Copy `.env.example` to `.env` and add your real credentials for:
 - `UPSTASH_REDIS_REST_TOKEN`
 - `UPSTASH_VECTOR_REST_URL`
 - `UPSTASH_VECTOR_REST_TOKEN`
-- `HF_TOKEN`
+- `LLM_API_KEY`
 
 ### 2. Install dependencies
 

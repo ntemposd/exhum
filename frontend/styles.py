@@ -87,7 +87,15 @@ def apply_styles() -> None:
         stroke-width: 3 !important;
     }
 
-    section[data-testid="stSidebar"] * {
+    .st-key-sidebar_root,
+    .st-key-sidebar_root p,
+    .st-key-sidebar_root label,
+    .st-key-sidebar_root h1,
+    .st-key-sidebar_root h2,
+    .st-key-sidebar_root h3,
+    .st-key-sidebar_root caption,
+    .st-key-sidebar_root [data-testid="stMarkdownContainer"],
+    .st-key-sidebar_root [data-testid="stCaptionContainer"] {
         color: #111111 !important;
     }
 
@@ -107,13 +115,14 @@ def apply_styles() -> None:
         color: #111111 !important;
     }
 
-    [data-testid="stSidebar"] .exhum-sidebar-heading,
+    .exhum-sidebar-heading,
     [data-testid="stMain"] h2,
     .exhum-section-title {
         display: flex;
         align-items: center;
         gap: 8px;
         margin: 6px 0 10px 0;
+        font-family: 'IBM Plex Mono', monospace !important;
         font-size: 1.18rem;
         font-weight: 800;
         letter-spacing: 0.04em;
@@ -167,126 +176,14 @@ def apply_styles() -> None:
         box-shadow: 2px 2px 0 0 #000000;
     }
 
-    .exhum-topic-edit-link:hover {
-        color: #111111;
-        background: #fff7ed;
-        border-color: #000000;
     }
 
-    div[class*="st-key-topic_edit_toggle"] button {
-        width: 100%;
-        min-height: 36px !important;
-        padding: 0 !important;
-        border: 2px solid #000000 !important;
-        border-radius: 0 !important;
-        background: #fff7ed !important;
-        color: #111111 !important;
-        box-shadow: 2px 2px 0 0 #000000 !important;
-    }
-
-    div[class*="st-key-topic_edit_toggle"] button:hover {
-        background: #facc15 !important;
-        color: #111111 !important;
-        box-shadow: 3px 3px 0 0 #000000 !important;
-        transform: translate(-1px, -1px);
-    }
-
-    .exhum-topic-title {
-        margin: 0;
-        font-size: 1.25rem;
-        font-weight: 700;
-        line-height: 1.35;
-    }
-
-    .exhum-badge {
-        display: inline-block;
-        border: 2px solid #000000;
-        border-radius: 999px;
-        padding: 4px 10px;
-        font-size: 0.78rem;
-        font-weight: 700;
-        background: #ffffff;
-        box-shadow: 2px 2px 0 0 #000000;
-    }
-
-    .exhum-badge-draft {
-        background: #fff4d6;
-    }
-
-    .exhum-badge-live {
-        background: #dcfce7;
-    }
-
-    .exhum-selected-chip-group {
-        width: 100%;
-        margin-top: 6px;
-    }
-
-    .exhum-drafted-chip-wrap {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+    .st-key-sidebar_root .st-key-drafted_council_chips {
         margin-top: 8px;
         margin-bottom: 14px;
     }
 
-    .exhum-drafted-chip {
-        display: flex;
-        align-items: stretch;
-        width: 100%;
-        min-height: 50px;
-        text-decoration: none !important;
-        border: 3px solid #000000;
-        border-radius: 0;
-        background: #ff6b00;
-        box-shadow: 4px 4px 0 0 #000000;
-        color: #111111 !important;
-        transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
-    }
-
-    .exhum-drafted-chip:hover {
-        background: #ff8a36;
-        transform: translate(-1px, -1px);
-        box-shadow: 5px 5px 0 0 #000000;
-    }
-
-    .exhum-drafted-chip .drafted-chip-label {
-        display: flex;
-        align-items: center;
-        flex: 1;
-        min-width: 0;
-        padding: 8px 10px 7px 12px;
-        line-height: 1.15;
-        font-size: 0.78rem;
-        font-weight: 800;
-        color: #111111;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        overflow: hidden;
-        white-space: normal;
-        text-overflow: ellipsis;
-    }
-
-    .exhum-drafted-chip .drafted-chip-x {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 40px;
-        padding: 0 10px;
-        border-left: 3px solid #000000;
-        background: #ffffff;
-        line-height: 1;
-        font-size: 0.95rem;
-        font-weight: 900;
-        color: #111111;
-    }
-
-    section[data-testid="stSidebar"] .st-key-drafted_council_chips {
-        margin-top: 8px;
-        margin-bottom: 14px;
-    }
-
-    section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stHorizontalBlock"] {
+    .st-key-sidebar_root .st-key-drafted_council_chips [data-testid="stHorizontalBlock"] {
         gap: 0.65rem;
     }
 
@@ -308,12 +205,12 @@ def apply_styles() -> None:
         justify-content: space-between;
         text-align: left;
         padding: 7px 10px;
-        border: 2px solid #000000 !important;
+        border: 3px solid #000000 !important;
         border-radius: 0 !important;
-        background: #ffffff !important;
-        box-shadow: 2px 2px 0 0 #000000 !important;
+        background: #fffaf3 !important;
+        box-shadow: 6px 6px 0 0 #000000 !important;
         color: #111111 !important;
-        font-size: 0.76rem;
+        font-size: 0.74rem;
         font-weight: 700;
         text-transform: none !important;
         letter-spacing: 0.01em;
@@ -325,11 +222,11 @@ def apply_styles() -> None:
 
     section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] > button:hover,
     section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button:hover {
-        background: #fff7ed !important;
+        background: #fff1de !important;
         border-color: #000000 !important;
         color: #111111 !important;
         transform: translate(-1px, -1px);
-        box-shadow: 3px 3px 0 0 #000000 !important;
+        box-shadow: 7px 7px 0 0 #000000 !important;
     }
 
     section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] > button:focus,
@@ -338,13 +235,13 @@ def apply_styles() -> None:
     section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button:focus-visible {
         outline: none;
         border-color: #000000 !important;
-        box-shadow: 3px 3px 0 0 #000000 !important;
+        box-shadow: 7px 7px 0 0 #000000 !important;
     }
 
     section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button p {
         color: #111111 !important;
         font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 0.76rem !important;
+        font-size: 0.74rem !important;
         font-weight: 700 !important;
         text-transform: none !important;
         letter-spacing: 0.01em !important;
@@ -705,32 +602,39 @@ def apply_styles() -> None:
 
     .exhum-brand-logo {
         display: block;
-        width: 78%;
-        max-width: 180px;
+        width: 62%;
+        max-width: 140px;
         height: auto;
-        margin: 0 auto 10px auto;
+        margin: 0 auto 8px auto;
     }
 
     .exhum-brand-copy {
         text-align: center;
         margin: 0 auto 14px auto;
-        max-width: 230px;
+        width: 100%;
+        max-width: 280px;
     }
 
     .exhum-brand-title {
-        font-size: 1.5rem;
+        display: block;
+        width: 100%;
+        font-size: 2rem;
         font-weight: 800;
-        letter-spacing: 0.18em;
-        line-height: 1;
+        letter-spacing: 0.14em;
+        line-height: 0.95;
         color: #111111;
         margin-bottom: 6px;
     }
 
     .exhum-brand-subtitle {
-        font-size: 0.72rem;
+        display: block;
+        font-size: 1.05rem;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 500;
         line-height: 1.35;
-        color: #444444;
-        letter-spacing: 0.02em;
+        margin-top: 0;
+        margin-bottom: 2px;
+        color: #555555;
     }
 
     .exhum-sticky-footer {
@@ -912,116 +816,138 @@ def apply_styles() -> None:
         box-shadow: 5px 5px 0 0 #000000;
     }
 
-    .exhum-telemetry-desktop {
-        display: block;
-    }
-
-    .exhum-telemetry-mobile {
-        display: none;
-        margin-top: 0;
-    }
-
-    .st-key-exhum_telemetry_desktop_system_status_card {
-        display: block;
-        margin: 0 0 16px 0;
-        border: 3px solid #000000;
-        border-radius: 0;
-        background: #ffffff;
-        box-shadow: 6px 6px 0 #000000;
-        padding: 12px 12px 11px 12px;
-    }
-
-    .st-key-exhum_telemetry_mobile_system_status_card {
-        display: none;
-        margin: 0 0 16px 0;
-        border: 3px solid #000000;
-        border-radius: 0;
-        background: #ffffff;
-        box-shadow: 6px 6px 0 #000000;
-        padding: 12px 12px 11px 12px;
-    }
-
-    .st-key-exhum_telemetry_desktop_services_toggle_row,
-    .st-key-exhum_telemetry_mobile_services_toggle_row {
-        margin-top: 12px;
-        margin-bottom: 8px;
-        padding-top: 10px;
-        border-top: 2px solid #111111;
-    }
-
-    .st-key-exhum_telemetry_desktop_services_toggle_row [data-testid="stHorizontalBlock"],
-    .st-key-exhum_telemetry_mobile_services_toggle_row [data-testid="stHorizontalBlock"] {
-        align-items: center;
-        gap: 0.55rem;
-    }
-
-    .st-key-exhum_telemetry_desktop_services_toggle_row [data-testid="column"],
-    .st-key-exhum_telemetry_mobile_services_toggle_row [data-testid="column"] {
-        display: flex;
-        align-items: center;
-    }
-
-    .st-key-exhum_telemetry_desktop_services_toggle_row [data-testid="column"]:last-child,
-    .st-key-exhum_telemetry_mobile_services_toggle_row [data-testid="column"]:last-child {
-        justify-content: flex-end;
-    }
-
-    .exhum-services-toggle-label {
-        font-size: 0.72rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #111111;
-        line-height: 1;
+    .st-key-telemetry_panel {
         padding-top: 0;
-        white-space: nowrap;
     }
 
-    .st-key-exhum_telemetry_desktop_services_toggle_row [data-testid="stToggle"],
-    .st-key-exhum_telemetry_mobile_services_toggle_row [data-testid="stToggle"] {
+    .exhum-telemetry-hero {
+        margin: 0 0 14px 0;
+        padding: 0 0 12px 0;
+        border-bottom: 2px solid #111111;
+    }
+
+    .exhum-telemetry-kicker {
+        display: block;
+        margin: 0 0 4px 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #6b7280 !important;
+        line-height: 1;
+    }
+
+    .exhum-telemetry-title {
         margin: 0;
-        width: auto;
-        min-width: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 1.55rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        line-height: 0.95;
+        color: #111111 !important;
     }
 
-    .st-key-exhum_telemetry_desktop_services_toggle_row [data-testid="stToggle"] label,
-    .st-key-exhum_telemetry_mobile_services_toggle_row [data-testid="stToggle"] label {
-        justify-content: flex-end;
-        gap: 0;
-        width: auto;
+    .exhum-telemetry-subtitle {
+        margin: 6px 0 0 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.77rem;
+        font-weight: 500;
+        line-height: 1.45;
+        letter-spacing: 0.01em;
+        color: #4b5563 !important;
+    }
+
+    .st-key-exhum_telemetry_panel {
+        font-family: 'IBM Plex Mono', monospace;
+        color: #111111;
+        margin-top: 0;
+        padding-top: 0;
+    }
+
+    .exhum-telemetry-section-heading {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin: 14px 0 8px 0;
+    }
+
+    .exhum-telemetry-section-heading-compact {
         margin: 0;
-        min-height: 20px;
     }
 
-    .st-key-exhum_telemetry_desktop_services_toggle_row [data-testid="stToggle"] p,
-    .st-key-exhum_telemetry_mobile_services_toggle_row [data-testid="stToggle"] p {
-        display: none !important;
+    .exhum-telemetry-section-kicker {
+        display: block;
+        margin: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.63rem;
+        font-weight: 800;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        line-height: 1;
+        color: #6b7280 !important;
     }
 
-    .st-key-exhum_telemetry_desktop_services_toggle_row [data-baseweb="switch"],
-    .st-key-exhum_telemetry_mobile_services_toggle_row [data-baseweb="switch"] {
-        transform: scale(0.95);
-        transform-origin: right center;
+    .exhum-telemetry-section-title {
+        display: block;
+        margin: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        line-height: 1.05;
+        color: #111111 !important;
     }
 
-    .st-key-exhum_telemetry_desktop_services_toggle_row [data-baseweb="switch"] > div,
-    .st-key-exhum_telemetry_mobile_services_toggle_row [data-baseweb="switch"] > div {
-        min-width: 34px !important;
-        background: #1f2937 !important;
-        border: 2px solid #000000 !important;
+    .exhum-telemetry-status-dot {
+        display: inline-block;
+        width: 0.72rem;
+        height: 0.72rem;
+        margin-right: 0.45rem;
+        border: 2px solid #111111;
+        border-radius: 999px;
+        box-shadow: 1px 1px 0 #000000;
+        vertical-align: middle;
     }
 
-    .st-key-exhum_telemetry_desktop_system_status_card details,
-    .st-key-exhum_telemetry_mobile_system_status_card details {
+    .exhum-telemetry-status-dot-optimal,
+    .exhum-telemetry-status-dot-online {
+        background: radial-gradient(circle at 35% 35%, #dcfce7 0 34%, #22c55e 35% 100%);
+    }
+
+    .exhum-telemetry-status-dot-degraded,
+    .exhum-telemetry-status-dot-offline {
+        background: radial-gradient(circle at 35% 35%, #fee2e2 0 34%, #ef4444 35% 100%);
+    }
+
+    .exhum-telemetry-status-dot-standby,
+    .exhum-telemetry-status-dot-idle {
+        background: radial-gradient(circle at 35% 35%, #fef3c7 0 34%, #f59e0b 35% 100%);
+    }
+
+    .st-key-exhum_telemetry_system_status_card {
+        margin: 0 0 10px 0;
+        border: 3px solid #000000;
+        border-radius: 0;
+        background: #ffffff;
+        box-shadow: 6px 6px 0 #000000;
+        padding: 12px 12px 10px 12px;
+    }
+
+    .st-key-exhum_telemetry_system_status_card details {
         border: none;
         border-radius: 0;
         background: transparent;
         box-shadow: none;
         padding: 0;
+        border-top: 2px solid #111111;
+        margin-top: 6px;
+        padding-top: 6px;
     }
 
-    .st-key-exhum_telemetry_desktop_system_status_card summary,
-    .st-key-exhum_telemetry_mobile_system_status_card summary {
+    .st-key-exhum_telemetry_system_status_card summary {
         font-family: 'IBM Plex Mono', monospace !important;
         font-size: 0.72rem;
         font-weight: 800;
@@ -1032,347 +958,543 @@ def apply_styles() -> None:
         background: #ffffff !important;
     }
 
-    .st-key-exhum_telemetry_desktop_system_status_card summary *,
-    .st-key-exhum_telemetry_mobile_system_status_card summary * {
+    .st-key-exhum_telemetry_system_status_card summary *,
+    .st-key-exhum_telemetry_system_status_card details[open] summary,
+    .st-key-exhum_telemetry_system_status_card details[open] summary * {
         color: #111111 !important;
         fill: #111111 !important;
-    }
-
-    .st-key-exhum_telemetry_desktop_system_status_card details[open] summary,
-    .st-key-exhum_telemetry_mobile_system_status_card details[open] summary,
-    .st-key-exhum_telemetry_desktop_system_status_card details[open] summary *,
-    .st-key-exhum_telemetry_mobile_system_status_card details[open] summary * {
         background: #ffffff !important;
-        color: #111111 !important;
-        fill: #111111 !important;
     }
 
-    .st-key-exhum_telemetry_desktop_system_status_card [data-testid="stExpander"] {
-        margin-top: 14px;
+    .st-key-exhum_telemetry_system_status_card [data-testid="stExpander"] {
+        margin-top: 10px;
     }
 
-    .st-key-exhum_telemetry_mobile_system_status_card [data-testid="stExpander"] {
-        margin-top: 14px;
+    .st-key-exhum_telemetry_neural_block [data-testid="stVerticalBlockBorderWrapper"] {
+        border: 3px solid #000000 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        box-shadow: 6px 6px 0 #000000 !important;
     }
 
-    .exhum-telemetry-shell {
-        font-family: 'Courier New', 'Roboto Mono', monospace;
-        color: #000000;
-        margin-top: 0;
-        padding-top: 0;
+    .st-key-exhum_telemetry_context_block,
+    .st-key-exhum_telemetry_cost_block,
+    .st-key-exhum_telemetry_entropy_block,
+    .st-key-exhum_telemetry_airtime_block {
+        margin-bottom: 10px;
     }
 
-    .exhum-telemetry-header {
-        position: sticky;
-        top: 8px;
-        z-index: 2;
-        border: 3px solid #000000;
-        border-radius: 0;
-        box-shadow: 6px 6px 0 #000000;
-        background: #ffffff;
-        padding: 8px 10px;
-        margin-top: 0;
-        margin-bottom: 16px;
-        font-weight: 800;
-        font-size: 0.78rem;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
+    .st-key-exhum_telemetry_cost_block {
+        margin-bottom: 10px;
+    }
+
+    .st-key-exhum_telemetry_cost_block [data-testid="stMarkdownContainer"] {
+        width: 100%;
+    }
+
+    .st-key-exhum_telemetry_cost_block [data-testid="stMarkdownContainer"] > p {
+        margin: 0;
+    }
+
+    .exhum-telemetry-cost-card {
         display: flex;
-        align-items: center;
-        gap: 8px;
+        flex-direction: column;
+        gap: 0.45rem;
+        width: 100%;
+        border: 3px solid #000000;
+        background: #fff7ed;
+        box-shadow: 6px 6px 0 #000000;
+        padding: 0.8rem 0.85rem 0.75rem 0.85rem;
     }
 
-    .exhum-system-status-summary {
+    .exhum-telemetry-cost-topline {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
+        gap: 0.75rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 2px solid #111111;
     }
 
-    .exhum-system-status-left {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-    }
-
-    .exhum-system-status-label {
-        font-size: 0.76rem;
+    .exhum-telemetry-cost-kicker {
+        display: block;
+        margin: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.64rem;
         font-weight: 800;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.11em;
         text-transform: uppercase;
-        line-height: 1.1;
+        line-height: 1;
+        color: #7c2d12 !important;
     }
 
-    .exhum-system-status-pill {
+    .exhum-telemetry-cost-unit {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 4px 8px 3px 8px;
+        min-height: 22px;
+        padding: 0.08rem 0.45rem;
         border: 2px solid #000000;
-        background: #f3f4f6;
-        font-size: 0.66rem;
-        font-weight: 800;
-        letter-spacing: 0.07em;
-        text-transform: uppercase;
-        white-space: nowrap;
-        line-height: 1;
-        box-shadow: 2px 2px 0 #000000;
-    }
-
-    .exhum-system-status-pill-optimal,
-    .exhum-system-status-pill-online {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .exhum-system-status-pill-standby {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .exhum-system-status-pill-offline,
-    .exhum-system-status-pill-degraded {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .exhum-system-status-block {
-        padding-top: 10px;
-        margin-bottom: 0;
-        box-shadow: 6px 0 0 #000000;
-    }
-
-    .exhum-system-status-header {
-        position: static;
-        top: auto;
-        z-index: auto;
-        border: none;
-        box-shadow: none;
-        background: transparent;
-        padding: 0;
-        margin: 0;
-    }
-
-    .exhum-system-status-shell {
-        margin: 0;
-        padding: 0;
-    }
-
-    .exhum-telemetry-dot {
-        width: 10px;
-        height: 10px;
-        border: 2px solid #000000;
-        border-radius: 50%;
-        background: #23c552;
-        animation: exhum-dot-blink 1.1s infinite;
-    }
-
-    @keyframes exhum-dot-blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.25; }
-    }
-
-    .exhum-telemetry-block {
-        border: 3px solid #000000;
-        border-radius: 0;
-        box-shadow: 6px 6px 0 #000000;
         background: #ffffff;
-        margin-bottom: 14px;
-        padding: 12px 12px 11px 12px;
-    }
-
-    .exhum-telemetry-kicker {
-        display: block;
-        font-size: 0.66rem;
+        box-shadow: 2px 2px 0 #000000;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.62rem;
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        margin-bottom: 8px;
-    }
-
-    .exhum-telemetry-value {
-        font-size: 1.02rem;
-        font-weight: 800;
-        line-height: 1.2;
-    }
-
-    .exhum-context-label {
-        font-size: 0.72rem;
-        line-height: 1.45;
-        letter-spacing: 0.02em;
-    }
-
-    .exhum-neural-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        border: 2px solid #000000;
-        background: #fcfcfc;
-        box-shadow: 3px 3px 0 #000000;
-        padding: 8px 10px;
-        margin-top: 8px;
-    }
-
-    .exhum-neural-label {
-        font-size: 0.7rem;
-        font-weight: 800;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-    }
-
-    .exhum-neural-value {
-        font-size: 0.76rem;
-        font-weight: 800;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
-        text-align: right;
+        color: #111111 !important;
         white-space: nowrap;
     }
 
-    .exhum-service-row {
-        border: 2px solid #000000;
-        background: #fbfdff;
-        box-shadow: 3px 3px 0 #000000;
-        padding: 10px 10px 8px 10px;
-        margin-top: 8px;
-    }
-
-    .exhum-service-main {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 4px;
-    }
-
-    .exhum-service-name {
-        font-size: 0.74rem;
+    .exhum-telemetry-cost-value {
+        display: block;
+        width: 100%;
+        margin: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 1.4rem;
         font-weight: 800;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        line-height: 1.25;
+        line-height: 1.02;
+        letter-spacing: 0.01em;
+        color: #111111 !important;
     }
 
-    .exhum-service-pill {
-        border: 2px solid #000000;
-        padding: 1px 6px 0 6px;
-        font-size: 0.62rem;
-        font-weight: 800;
-        letter-spacing: 0.07em;
-        text-transform: uppercase;
-        white-space: nowrap;
-    }
-
-    .exhum-service-online {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .exhum-service-offline {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .exhum-service-latency {
-        font-size: 0.66rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: #111111;
-    }
-
-    .exhum-service-detail {
-        margin-top: 4px;
-        font-size: 0.66rem;
+    .exhum-telemetry-cost-caption {
+        margin: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.69rem;
+        font-weight: 500;
         line-height: 1.35;
-        color: #4b5563;
+        color: #57534e !important;
     }
 
-    .exhum-telemetry-emphasis {
-        background: #FFD700;
-        border: 2px solid #000000;
-        padding: 0 4px;
-        box-decoration-break: clone;
+    .st-key-exhum_telemetry_context_block > [data-testid="stVerticalBlock"] {
+        gap: 0.45rem;
     }
 
-    .exhum-ctx-track {
-        height: 14px;
-        border: 2px solid #000000;
-        background: #ffffff;
-        box-shadow: 3px 3px 0 #000000;
-        margin-top: 8px;
-        overflow: hidden;
-    }
-
-    .exhum-ctx-fill {
-        height: 100%;
-        background: #FFD700;
-        border-right: 2px solid #000000;
-    }
-
-    .exhum-ctx-fill-green {
-        background: #22c55e;
-    }
-
-    .exhum-ctx-fill-yellow {
-        background: #facc15;
-    }
-
-    .exhum-ctx-fill-red {
-        background: #ef4444;
-    }
-
-    .exhum-air-row {
-        display: grid;
-        grid-template-columns: 78px 1fr 46px;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-    }
-
-    .exhum-air-label,
-    .exhum-air-value {
-        font-size: 0.66rem;
-        font-weight: 700;
-        line-height: 1.2;
+    .st-key-exhum_telemetry_neural_block [data-testid="stCaptionContainer"],
+    .st-key-exhum_telemetry_airtime_block [data-testid="stCaptionContainer"],
+    .st-key-exhum_telemetry_context_block [data-testid="stCaptionContainer"],
+    .st-key-exhum_telemetry_system_status_card [data-testid="stCaptionContainer"] {
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.69rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
+        color: #374151 !important;
     }
 
-    .exhum-air-track {
-        height: 12px;
-        border: 2px solid #000000;
+    .st-key-exhum_telemetry_system_status_card [data-testid="stMarkdownContainer"] > p {
+        margin: 0;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stHorizontalBlock"] {
+        align-items: center;
+    }
+
+    .st-key-exhum_telemetry_system_status_header {
+        margin-bottom: 2px;
+    }
+
+    .st-key-exhum_telemetry_system_status_header [data-testid="column"] {
+        display: flex;
+        align-items: center;
+        min-height: 28px;
+    }
+
+    .st-key-exhum_telemetry_system_status_header [data-testid="column"]:first-child {
+        justify-content: flex-start;
+    }
+
+    .st-key-exhum_telemetry_system_status_header [data-testid="column"]:last-child {
+        justify-content: flex-end;
+    }
+
+    .st-key-exhum_telemetry_system_status_header [data-testid="stHorizontalBlock"] {
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .st-key-exhum_telemetry_system_status_header [data-testid="stMarkdownContainer"] > h5 {
+        display: flex;
+        align-items: center;
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1;
+        min-height: 24px;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stExpanderDetails"] {
+        padding-top: 4px;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"],
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"],
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"],
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        border: 3px solid #000000;
+        box-shadow: 6px 6px 0 #000000;
         background: #ffffff;
-        overflow: hidden;
+        overflow-x: auto;
     }
 
-    .exhum-air-fill {
-        height: 100%;
-        background: #000000;
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] > div,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] > div,
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] > div,
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] > div {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] *,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] *,
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] *,
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] * {
+        font-family: 'IBM Plex Mono', monospace !important;
+        color: #111111 !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] table,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] table,
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] table,
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] table {
+        width: 100%;
+        min-width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        background: #ffffff !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] colgroup col:first-child,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] colgroup col:first-child,
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] colgroup col:first-child,
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] colgroup col:first-child {
+        width: 0 !important;
+        display: none !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] thead tr > *:first-child,
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] tbody tr > *:first-child,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] thead tr > *:first-child,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] tbody tr > *:first-child,
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] thead tr > *:first-child,
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] tbody tr > *:first-child,
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] thead tr > *:first-child,
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] tbody tr > *:first-child {
+        display: none !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] thead tr,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] thead tr,
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] thead tr,
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] thead tr {
+        background: #f3f4f6 !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] th,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] th,
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] th,
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] th {
+        background: #f3f4f6 !important;
+        font-size: 0.65rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.06em !important;
+        text-transform: uppercase !important;
+        border-bottom: 2px solid #000000 !important;
+        padding: 0.3rem 0.55rem !important;
+        text-align: left !important;
+        line-height: 1.05 !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] td,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] td,
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] td,
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] td {
+        background: #ffffff !important;
+        font-size: 0.7rem !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+        border-bottom: 1px solid #d1d5db !important;
+        padding: 0.42rem 0.55rem !important;
+        white-space: nowrap;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] th:nth-child(2),
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] td:nth-child(2) {
+        width: 60%;
+        text-align: left !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] th:nth-child(3),
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] td:nth-child(3) {
+        width: 40%;
+        text-align: right !important;
+    }
+
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] th:nth-child(2),
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] td:nth-child(2) {
+        width: 60%;
+    }
+
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] th:nth-child(3),
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] td:nth-child(3) {
+        width: 40%;
+        text-align: right !important;
+    }
+
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] th:nth-child(2),
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] td:nth-child(2) {
+        width: 60%;
+    }
+
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] th:nth-child(3),
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] td:nth-child(3) {
+        width: 40%;
+        text-align: right !important;
+    }
+
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] th:nth-child(2),
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] td:nth-child(2) {
+        width: 60%;
+        text-align: left !important;
+    }
+
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] th:nth-child(3),
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] td:nth-child(3) {
+        text-align: right !important;
+        width: 18%;
+        padding-right: 0.85rem !important;
+    }
+
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] th:nth-child(4),
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] td:nth-child(4) {
+        text-align: right !important;
+        width: 22%;
+        padding-left: 1rem !important;
+        border-left: 1px solid #d1d5db !important;
+    }
+
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] td:nth-child(2),
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] td:nth-child(2) * {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] tbody tr:last-child td,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] tbody tr:last-child td,
+    .st-key-exhum_telemetry_context_block [data-testid="stTable"] tbody tr:last-child td,
+    .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] tbody tr:last-child td {
+        border-bottom: none !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stMetric"] {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .st-key-exhum_telemetry_context_block [data-testid="stProgressBar"] {
+        margin-top: 2px;
+    }
+
+    .st-key-exhum_telemetry_context_block [data-testid="stProgressBar"] div[role="progressbar"] {
+        background: #111111 !important;
+    }
+
+    .st-key-exhum_telemetry_context_block [data-testid="stProgressBar"] > div {
+        background: #ffffff !important;
+        border: 3px solid #000000;
+        border-radius: 0 !important;
+        box-shadow: 6px 6px 0 #000000;
+        overflow: hidden;
     }
 
     @media (max-width: 768px) {
-        .exhum-telemetry-desktop {
-            display: none;
-        }
-
-        .exhum-telemetry-mobile {
-            display: block;
-        }
-
-        .st-key-exhum_telemetry_desktop_system_status_card {
-            display: none;
-        }
-
-        .st-key-exhum_telemetry_mobile_system_status_card {
-            display: block;
-        }
-
         [data-testid="stMain"] h2 {
             margin: 4px 0 8px 0;
         }
 
+        .st-key-exhum_telemetry_system_status_card {
+            box-shadow: 4px 4px 0 #000000;
+            padding: 10px 10px 8px 10px;
+        }
+
+        .st-key-exhum_telemetry_neural_block [data-testid="stVerticalBlockBorderWrapper"] {
+            box-shadow: 4px 4px 0 #000000 !important;
+        }
+
+        .st-key-exhum_telemetry_system_status_header [data-testid="column"] {
+            min-height: 24px;
+        }
+
+        .st-key-exhum_telemetry_system_status_card [data-testid="stTable"],
+        .st-key-exhum_telemetry_neural_block [data-testid="stTable"],
+        .st-key-exhum_telemetry_context_block [data-testid="stTable"],
+        .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] {
+            box-shadow: 4px 4px 0 #000000;
+        }
+
+        .exhum-telemetry-cost-card {
+            box-shadow: 4px 4px 0 #000000;
+        }
+
+        .st-key-exhum_telemetry_context_block [data-testid="stProgressBar"] > div {
+            box-shadow: 4px 4px 0 #000000;
+        }
+    }
+
+    .exhum-telemetry-entropy-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        width: 100%;
+        border: 3px solid #000000;
+        background: #eef6ff;
+        box-shadow: 6px 6px 0 #000000;
+        padding: 0.8rem 0.85rem 0.75rem 0.85rem;
+    }
+
+    .exhum-telemetry-entropy-topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .exhum-telemetry-entropy-kicker {
+        display: block;
+        margin: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.64rem;
+        font-weight: 800;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        line-height: 1;
+        color: #1d4ed8 !important;
+    }
+
+    .exhum-telemetry-entropy-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 22px;
+        padding: 0.08rem 0.45rem;
+        border: 2px solid #000000;
+        background: #ffffff;
+        box-shadow: 2px 2px 0 #000000;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #111111 !important;
+        white-space: nowrap;
+    }
+
+    .exhum-telemetry-entropy-values {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+        padding-bottom: 0.45rem;
+        border-bottom: 2px solid #111111;
+    }
+
+    .exhum-telemetry-entropy-value-block {
+        display: flex;
+        flex-direction: column;
+        gap: 0.18rem;
+        min-width: 0;
+    }
+
+    .exhum-telemetry-entropy-value-label {
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.63rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #4b5563 !important;
+    }
+
+    .exhum-telemetry-entropy-value {
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 1.28rem;
+        font-weight: 800;
+        line-height: 1.02;
+        color: #111111 !important;
+    }
+
+    .exhum-telemetry-entropy-progress {
+        display: flex;
+        flex-direction: column;
+        gap: 0.38rem;
+    }
+
+    .exhum-telemetry-entropy-progress-labels {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.67rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #111111 !important;
+    }
+
+    .exhum-telemetry-entropy-track {
+        position: relative;
+        height: 18px;
+        border: 2px solid #000000;
+        background: #ffffff;
+        box-shadow: 3px 3px 0 #000000;
+        overflow: hidden;
+    }
+
+    .exhum-telemetry-entropy-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        height: 100%;
+        background: #0ea5a4;
+        border-right: 2px solid #000000;
+    }
+
+    .exhum-telemetry-entropy-target-marker,
+    .exhum-telemetry-entropy-current-marker {
+        position: absolute;
+        top: -2px;
+        bottom: -2px;
+        width: 0;
+        border-left: 2px solid #000000;
+        transform: translateX(-1px);
+        z-index: 2;
+    }
+
+    .exhum-telemetry-entropy-target-marker {
+        border-left-color: #dc2626;
+    }
+
+    .exhum-telemetry-entropy-current-marker {
+        border-left-color: #111111;
+    }
+
+    .exhum-telemetry-entropy-caption {
+        margin: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.69rem;
+        font-weight: 500;
+        line-height: 1.35;
+        color: #475569 !important;
+    }
+
+    @media (max-width: 768px) {
+        .exhum-telemetry-entropy-card {
+            box-shadow: 4px 4px 0 #000000;
+        }
     }
 
     .exhum-temperature-controller {
@@ -1391,6 +1513,10 @@ def apply_styles() -> None:
         margin-top: 0;
         margin-bottom: 2px;
         color: #555555;
+    }
+
+    .st-key-sidebar_entropy [data-testid="stSliderTickBar"] {
+        opacity: 1 !important;
     }
 
     .exhum-section-title {
@@ -1412,86 +1538,102 @@ def apply_styles() -> None:
     }
 
     .exhum-sidebar-heading {
-        margin: 0;
+        margin: 10px 0 12px 0;
         color: inherit;
     }
 
-    section[data-testid="stSidebar"] .exhum-card {
+    .st-key-sidebar_root .exhum-card {
         border-width: 1.5px;
         box-shadow: 2px 2px 0 0 #000000;
         padding: 10px 12px;
         margin-bottom: 8px;
     }
 
-    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button {
-        min-height: 40px !important;
-        padding: 6px 8px !important;
-        border: 3px solid #000000 !important;
-        border-radius: 0 !important;
-        background: #1f2937 !important;
-        color: #f8fafc !important;
-        box-shadow: 3px 3px 0 0 #000000 !important;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 0.68rem !important;
-        font-weight: 800 !important;
-        letter-spacing: 0.08em !important;
-        text-transform: uppercase !important;
-    }
-
-    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button:hover {
-        background: #374151 !important;
-        border-color: #000000 !important;
-        color: #f8fafc !important;
-        box-shadow: 4px 4px 0 0 #000000 !important;
-        transform: translate(-1px, -1px);
-    }
-
-    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button p {
-        color: #f8fafc !important;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 0.68rem !important;
-        font-weight: 800 !important;
-        letter-spacing: 0.08em !important;
-        text-transform: uppercase !important;
-        white-space: nowrap !important;
-    }
-
     section[data-testid="stSidebar"] .stButton > button,
-    section[data-testid="stSidebar"] .stFormSubmitButton > button {
-        border-width: 3px;
+    section[data-testid="stSidebar"] [data-testid="stButton"] > button,
+    section[data-testid="stSidebar"] .stFormSubmitButton > button,
+    section[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button,
+    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button {
+        --exhum-sidebar-button-bg: #1f2937;
+        --exhum-sidebar-button-fg: #f8fafc;
+        --exhum-sidebar-button-hover-bg: #374151;
+        --exhum-sidebar-button-hover-fg: #f8fafc;
+        border: 3px solid #000000;
+        border-radius: 0;
+        background: var(--exhum-sidebar-button-bg);
+        color: var(--exhum-sidebar-button-fg);
         box-shadow: 3px 3px 0 0 #000000;
         min-height: 42px;
         font-size: 0.9rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     section[data-testid="stSidebar"] .stButton > button:hover,
-    section[data-testid="stSidebar"] .stFormSubmitButton > button:hover {
+    section[data-testid="stSidebar"] [data-testid="stButton"] > button:hover,
+    section[data-testid="stSidebar"] .stFormSubmitButton > button:hover,
+    section[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button:hover,
+    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button:hover {
         box-shadow: 4px 4px 0 0 #000000;
-        background: #374151;
+        background: var(--exhum-sidebar-button-hover-bg);
+        color: var(--exhum-sidebar-button-hover-fg);
+        border-color: #000000;
+        transform: translate(-1px, -1px);
+    }
+
+    section[data-testid="stSidebar"] .stButton > button p,
+    section[data-testid="stSidebar"] [data-testid="stButton"] > button p,
+    section[data-testid="stSidebar"] .stFormSubmitButton > button p,
+    section[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button p,
+    section[data-testid="stSidebar"] .stButton > button *,
+    section[data-testid="stSidebar"] [data-testid="stButton"] > button *,
+    section[data-testid="stSidebar"] .stFormSubmitButton > button *,
+    section[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button *,
+    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button * {
+        color: inherit !important;
+        font-weight: 800 !important;
+        white-space: nowrap;
+    }
+
+    section[data-testid="stSidebar"] .stButton > button[kind="primary"],
+    section[data-testid="stSidebar"] [data-testid="stButton"] > button[kind="primary"],
+    section[data-testid="stSidebar"] .stFormSubmitButton > button[kind="primary"],
+    section[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button[kind="primary"] {
+        --exhum-sidebar-button-bg: #facc15;
+        --exhum-sidebar-button-fg: #111111;
+        --exhum-sidebar-button-hover-bg: #e0a800;
+        --exhum-sidebar-button-hover-fg: #111111;
+    }
+
+    section[data-testid="stSidebar"] .stButton > button[kind="primary"] p,
+    section[data-testid="stSidebar"] [data-testid="stButton"] > button[kind="primary"] p,
+    section[data-testid="stSidebar"] .stFormSubmitButton > button[kind="primary"] p,
+    section[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button[kind="primary"] p {
+        color: inherit !important;
     }
 
     section[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover,
-    section[data-testid="stSidebar"] .stFormSubmitButton > button[kind="primary"]:hover {
-        background: #e0a800 !important;
-        color: #111111 !important;
-        box-shadow: 5px 5px 0 0 #000000 !important;
+    section[data-testid="stSidebar"] [data-testid="stButton"] > button[kind="primary"]:hover,
+    section[data-testid="stSidebar"] .stFormSubmitButton > button[kind="primary"]:hover,
+    section[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button[kind="primary"]:hover {
+        background: var(--exhum-sidebar-button-hover-bg) !important;
+        color: var(--exhum-sidebar-button-hover-fg) !important;
     }
 
-    .exhum-critical-warning {
-        display: inline-block;
-        background: #ff0000;
-        color: #ffffff;
-        border: 2px solid #000000;
-        padding: 2px 6px;
-        font-size: 0.7rem;
-        font-weight: 800;
-        animation: exhum-critical-blink 0.6s infinite;
-        margin-left: 8px;
+    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button {
+        --exhum-sidebar-button-bg: #2F353A;
+        --exhum-sidebar-button-fg: #f8fafc;
+        --exhum-sidebar-button-hover-bg: #b91c1c;
+        --exhum-sidebar-button-hover-fg: #f8fafc;
     }
 
-    @keyframes exhum-critical-blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.3; }
+    section[data-testid="stSidebar"] div[class*="st-key-clear_button"] button {
+        --exhum-sidebar-button-hover-bg: #b91c1c;
+        --exhum-sidebar-button-hover-fg: #f8fafc;
     }
 
     @media (max-width: 900px) {

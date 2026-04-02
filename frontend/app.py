@@ -117,10 +117,22 @@ def render_section_title(icon: str, label: str, extra_class: str = "") -> None:
     )
 
 
+def render_sidebar_heading(label: str, extra_class: str = "") -> None:
+    class_attr = "exhum-sidebar-heading"
+    if extra_class:
+        class_attr += f" {extra_class}"
+    st.markdown(
+        f"<div class='{class_attr}'>{label}</div>",
+        unsafe_allow_html=True,
+    )
+
+
 TOPIC_LOCKED_MESSAGE = (
     "Discussion theme is locked after the debate starts. "
     "Wipe the debate or start a new session to change it."
 )
+
+DEFAULT_COUNCIL_AGENT_IDS = ["agt_001", "agt_002", "agt_003", "agt_004"]
 
 
 def open_topic_edit_mode() -> None:
@@ -174,6 +186,9 @@ def init_session_state() -> None:
         "current_turn_number": 1,
         "thinking_message_id": "",
         "thinking_visible": False,
+        "telemetry_live": False,
+        "agents_backend_url": "",
+        "agents_payload_cache": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -188,11 +203,32 @@ def init_session_state() -> None:
 init_session_state()
 
 
+def load_agents_payload() -> Dict[str, Any]:
+    cached_backend_url = str(st.session_state.get("agents_backend_url", ""))
+    cached_payload = st.session_state.get("agents_payload_cache")
+    if cached_payload is not None and cached_backend_url == api.BACKEND_URL:
+        return cached_payload
+
+    payload = asyncio.run(api.fetch_agents_from_backend())
+    st.session_state.agents_backend_url = api.BACKEND_URL
+    st.session_state.agents_payload_cache = payload
+    return payload
+
+
+def get_default_council_agent_ids(available_agents: Dict[str, str]) -> list[str]:
+    available_default_ids = [
+        agent_id for agent_id in DEFAULT_COUNCIL_AGENT_IDS if agent_id in available_agents
+    ]
+    if available_default_ids:
+        return available_default_ids
+    return list(available_agents.keys())[:4]
+
+
 # ============================================================================
 # INITIAL DATA LOAD
 # ============================================================================
 
-agents_payload = asyncio.run(api.fetch_agents_from_backend())
+agents_payload = load_agents_payload()
 loaded_agents = agents_payload.get("agents", []) if isinstance(agents_payload, dict) else []
 backend_error = (
     agents_payload.get("_error", "") if isinstance(agents_payload, dict) else ""
@@ -209,8 +245,12 @@ available_agents: Dict[str, str] = {
 legends_catalog = load_legends_registry(available_agents)
 legend_map = {item["agent_id"]: item for item in legends_catalog}
 
-if not st.session_state.default_legends_seeded and not st.session_state.selected_agents and legends_catalog:
-    st.session_state.selected_agents = [item["agent_id"] for item in legends_catalog[:4]]
+if (
+    not st.session_state.default_legends_seeded
+    and not st.session_state.selected_agents
+    and available_agents
+):
+    st.session_state.selected_agents = get_default_council_agent_ids(available_agents)
     st.session_state.default_legends_seeded = True
 
 if st.session_state.selected_agents:
@@ -285,31 +325,122 @@ def legend_picker_dialog() -> None:
 speaker_progress_bars: Dict[str, Any] = {}
 
 with st.sidebar:
-    logo_uri = get_logo_data_uri()
-    logo_html = (
-        f"<img class='exhum-brand-logo' src='{logo_uri}' alt='EXHUMED logo' />"
-        if logo_uri
-        else "<div style='text-align:center;font-size:72px;line-height:1;margin:0 0 10px 0;'>🎭</div>"
-    )
-    st.markdown(logo_html, unsafe_allow_html=True)
-    st.markdown(
-        "<div class='exhum-brand-copy'>"
-        "<div class='exhum-brand-title'>EXHUMED</div>"
-        "<div class='exhum-brand-subtitle'>Digital Exhumation of Historical Logic.</div>"
-        "</div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown("<div class='exhum-sidebar-heading'>Controls</div>", unsafe_allow_html=True)
+    with st.container(key="sidebar_root"):
+        logo_uri = get_logo_data_uri()
+        logo_html = (
+            f"<img class='exhum-brand-logo' src='{logo_uri}' alt='EXHUMED logo' />"
+            if logo_uri
+            else "<div style='text-align:center;font-size:72px;line-height:1;margin:0 0 10px 0;'>🎭</div>"
+        )
+        st.markdown(logo_html, unsafe_allow_html=True)
+        st.markdown(
+            "<div class='exhum-brand-copy'>"
+            "<div class='exhum-brand-title'>EXHUMED</div>"
+            "<div class='exhum-brand-subtitle'>Digital Exhumation of Historical Logic.</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
-    col_sid, col_btn = st.columns([4, 1])
-    with col_sid:
-        st.caption(f"Session: {st.session_state.session_id[:12]}...")
-    with col_btn:
-        if st.button("⟳", key="new_session_button", help="Create new session", use_container_width=True):
+        if st.button("🪏 Select Speaker", key="open_legend_picker", use_container_width=True, type="primary"):
+            legend_picker_dialog()
+
+        render_sidebar_heading("Drafted Council")
+
+        if st.session_state.selected_agents:
+            render_drafted_chips_component(
+                st.session_state.selected_agents, available_agents
+            )
+        else:
+            st.markdown(
+                "<div class='exhum-drafted-empty'>NO ENTITIES RECOVERED.<br/>CLICK ABOVE TO START.</div>",
+                unsafe_allow_html=True,
+            )
+
+        with st.container(key="sidebar_entropy"):
+            render_sidebar_heading("Logic Entropy", extra_class="exhum-temperature-controller")
+            st.markdown(
+                "<span class='exhum-temperature-caption'>Adjust between rigid logic & creative unpredictability.</span>",
+                unsafe_allow_html=True,
+            )
+            render_entropy_slider_control()
+
+        render_sidebar_heading("Commands")
+
+        start = st.button("▶️ Start Debate", key="start_button", use_container_width=True)
+        stop = st.button("⏸️ Halt Debate", key="pause_button", use_container_width=True)
+        clear = st.button("🧹 Wipe Debate", key="clear_button", use_container_width=True)
+
+        if start:
+            if not st.session_state.topic_input.strip():
+                st.error("Set a discussion topic first.")
+            elif not st.session_state.selected_agents:
+                st.error("Draft at least one legend.")
+            else:
+                topic_to_run = st.session_state.topic_input.strip()
+                st.session_state.topic_input = topic_to_run
+                st.session_state.topic_edit_buffer = topic_to_run
+                asyncio.run(api.push_session_topic(st.session_state.session_id, topic_to_run))
+                st.session_state.round_temperature = float(st.session_state.target_entropy)
+                st.session_state.discussion_active = True
+                st.session_state.discussion_started = True
+                st.session_state.speaker_progress = {aid: 0.0 for aid in st.session_state.selected_agents}
+                st.session_state.current_agent_index = 0
+                st.session_state.current_turn_number = int(st.session_state.turn_count) + 1
+                st.session_state.thinking_message_id = ""
+                st.session_state.thinking_visible = False
+                st.rerun()
+
+        if stop:
+            st.session_state.discussion_active = False
+            st.session_state.current_agent_index = 0
+            st.session_state.thinking_message_id = ""
+            st.session_state.thinking_visible = False
+            st.info("Round paused.")
+
+        if clear:
+            clear_ok = asyncio.run(api.clear_session(st.session_state.session_id))
+            st.session_state.update({
+                "messages": [],
+                "expanded_message_keys": [],
+                "speaker_progress": {},
+                "turn_count": 0,
+                "discussion_active": False,
+                "discussion_started": False,
+                "topic_edit_mode": False,
+                "current_agent_index": 0,
+                "current_turn_number": 1,
+                "thinking_message_id": "",
+                "thinking_visible": False,
+            })
+            st.session_state.topic_edit_buffer = st.session_state.topic_input
+            if clear_ok:
+                st.success("Debate cleared.")
+            else:
+                st.warning("Debate cleared locally, but backend cleanup failed.")
+
+        if st.button("📄 Download Transcript", use_container_width=True):
+            if not st.session_state.messages:
+                st.warning("No messages to export.")
+            else:
+                with st.spinner("Generating PDF..."):
+                    pdf_bytes = asyncio.run(api.download_pdf_export(st.session_state.session_id))
+                if pdf_bytes:
+                    st.download_button(
+                        "Download",
+                        data=pdf_bytes,
+                        file_name=f"exhumed_{st.session_state.session_id[:8]}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+
+        render_sidebar_heading("Session")
+        st.caption(f"Current session: {st.session_state.session_id[:12]}...")
+        if st.button("⟳ Renew Session", key="new_session_button", help="Create new session", use_container_width=True):
             st.session_state.update({
                 "session_id": str(uuid4()),
                 "messages": [],
                 "expanded_message_keys": [],
+                "selected_agents": get_default_council_agent_ids(available_agents),
                 "speaker_progress": {},
                 "turn_count": 0,
                 "discussion_active": False,
@@ -317,6 +448,7 @@ with st.sidebar:
                 "topic_input": "The future of AI in society",
                 "topic_edit_mode": False,
                 "topic_loaded_for_session": "",
+                "default_legends_seeded": True,
                 "current_agent_index": 0,
                 "current_turn_number": 1,
                 "thinking_message_id": "",
@@ -324,102 +456,6 @@ with st.sidebar:
             })
             st.session_state.topic_edit_buffer = st.session_state.topic_input
             st.rerun()
-
-    if st.button("🪏 Select Speaker", key="open_legend_picker", use_container_width=True, type="primary"):
-        legend_picker_dialog()
-
-    st.markdown(
-        "<div class='exhum-sidebar-heading'>Drafted Council</div>",
-        unsafe_allow_html=True,
-    )
-
-    if st.session_state.selected_agents:
-        render_drafted_chips_component(
-            st.session_state.selected_agents, available_agents
-        )
-    else:
-        st.markdown(
-            "<div class='exhum-drafted-empty'>NO ENTITIES RECOVERED.<br/>CLICK ABOVE TO START.</div>",
-            unsafe_allow_html=True,
-        )
-
-    st.markdown(
-        "<div class='exhum-temperature-controller'>"
-        "<span class='exhum-sidebar-heading'>Logic Entropy</span></div>",
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        "<span class='exhum-temperature-caption'>Set the balance between rigid logic and creative unpredictability.</span>",
-        unsafe_allow_html=True,
-    )
-    render_entropy_slider_control()
-
-    start = st.button("▶️ Start Debate", key="start_button", use_container_width=True)
-    stop = st.button("⏸️ Halt Debate", key="pause_button", use_container_width=True)
-    clear = st.button("🧹 Wipe Debate", key="clear_button", use_container_width=True)
-
-    if start:
-        if not st.session_state.topic_input.strip():
-            st.error("Set a discussion topic first.")
-        elif not st.session_state.selected_agents:
-            st.error("Draft at least one legend.")
-        else:
-            topic_to_run = st.session_state.topic_input.strip()
-            st.session_state.topic_input = topic_to_run
-            st.session_state.topic_edit_buffer = topic_to_run
-            asyncio.run(api.push_session_topic(st.session_state.session_id, topic_to_run))
-            st.session_state.round_temperature = float(st.session_state.target_entropy)
-            st.session_state.discussion_active = True
-            st.session_state.discussion_started = True
-            st.session_state.speaker_progress = {aid: 0.0 for aid in st.session_state.selected_agents}
-            st.session_state.current_agent_index = 0
-            st.session_state.current_turn_number = int(st.session_state.turn_count) + 1
-            st.session_state.thinking_message_id = ""
-            st.session_state.thinking_visible = False
-            st.rerun()
-
-    if stop:
-        st.session_state.discussion_active = False
-        st.session_state.current_agent_index = 0
-        st.session_state.thinking_message_id = ""
-        st.session_state.thinking_visible = False
-        st.info("Round paused.")
-
-    if clear:
-        clear_ok = asyncio.run(api.clear_session(st.session_state.session_id))
-        st.session_state.update({
-            "messages": [],
-            "expanded_message_keys": [],
-            "speaker_progress": {},
-            "turn_count": 0,
-            "discussion_active": False,
-            "discussion_started": False,
-            "topic_edit_mode": False,
-            "current_agent_index": 0,
-            "current_turn_number": 1,
-            "thinking_message_id": "",
-            "thinking_visible": False,
-        })
-        st.session_state.topic_edit_buffer = st.session_state.topic_input
-        if clear_ok:
-            st.success("Debate cleared.")
-        else:
-            st.warning("Debate cleared locally, but backend cleanup failed.")
-
-    if st.button("📄 Download Transcript", use_container_width=True):
-        if not st.session_state.messages:
-            st.warning("No messages to export.")
-        else:
-            with st.spinner("Generating PDF..."):
-                pdf_bytes = asyncio.run(api.download_pdf_export(st.session_state.session_id))
-            if pdf_bytes:
-                st.download_button(
-                    "Download",
-                    data=pdf_bytes,
-                    file_name=f"exhumed_{st.session_state.session_id[:8]}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                )
 
 
 # ============================================================================
@@ -592,20 +628,27 @@ with col_chat:
                         )
 
 with col_panel:
-    render_section_title("📡", "Telemetry")
-    render_telemetry_panel(
-        messages=st.session_state.messages,
-        selected_agents=st.session_state.selected_agents,
-        available_agents=available_agents,
-        mode_class="exhum-telemetry-desktop",
-    )
-
-render_telemetry_panel(
-    messages=st.session_state.messages,
-    selected_agents=st.session_state.selected_agents,
-    available_agents=available_agents,
-    mode_class="exhum-telemetry-mobile",
-)
+    with st.container(key="telemetry_panel"):
+        st.markdown(
+            "<div class='exhum-telemetry-hero'>"
+            "<span class='exhum-telemetry-kicker'>Runtime Monitor</span>"
+            "<div class='exhum-telemetry-title'>Telemetry</div>"
+            "<p class='exhum-telemetry-subtitle'>Live model health, context pressure, spend, and speaking balance.</p>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        st.toggle(
+            "Live backend metrics",
+            key="telemetry_live",
+            help="Enable live telemetry and service checks. Leaving this off improves page load and rerun speed.",
+        )
+        render_telemetry_panel(
+            messages=st.session_state.messages,
+            selected_agents=st.session_state.selected_agents,
+            available_agents=available_agents,
+            key_prefix="exhum_telemetry",
+            fetch_live=bool(st.session_state.telemetry_live),
+        )
 
 
 # ============================================================================

@@ -108,13 +108,13 @@ def _fetch_services_status_cached(backend_url: str) -> Dict[str, Any]:
                     "detail": "Status check unavailable",
                 },
                 {
-                    "name": "Vector (Upstash)",
+                    "name": "Vector",
                     "status": "OFFLINE",
                     "latency_ms": None,
                     "detail": "Status check unavailable",
                 },
                 {
-                    "name": "Inference (LLM)",
+                    "name": "Inference",
                     "status": "OFFLINE",
                     "latency_ms": None,
                     "detail": "Status check unavailable",

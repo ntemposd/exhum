@@ -454,7 +454,7 @@ async def check_services() -> Dict[str, Any]:
         vector_latency_ms = int((time.perf_counter() - vector_started) * 1000)
         services.append(
             ServiceStatus(
-                name="Vector (Upstash)",
+                name="Vector",
                 status="ONLINE",
                 latency_ms=vector_latency_ms,
             )
@@ -463,7 +463,7 @@ async def check_services() -> Dict[str, Any]:
         logger.warning("Upstash Vector health check failed: %s", exc)
         services.append(
             ServiceStatus(
-                name="Vector (Upstash)",
+                name="Vector",
                 status="OFFLINE",
                 detail=str(exc)[:160],
             )
@@ -478,7 +478,7 @@ async def check_services() -> Dict[str, Any]:
         inference_latency_ms = int((time.perf_counter() - inference_started) * 1000)
         services.append(
             ServiceStatus(
-                name="Inference (LLM)",
+                name="Inference",
                 status="ONLINE",
                 latency_ms=inference_latency_ms,
             )
@@ -487,7 +487,7 @@ async def check_services() -> Dict[str, Any]:
         logger.warning("Inference health check failed: %s", exc)
         services.append(
             ServiceStatus(
-                name="Inference (LLM)",
+                name="Inference",
                 status="OFFLINE",
                 detail=str(exc)[:160],
             )

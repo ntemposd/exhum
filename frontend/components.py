@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus
 
+import pandas as pd
 import streamlit as st
 
 import api
@@ -24,6 +25,12 @@ FRONTEND_DIR = Path(__file__).resolve().parent
 LEGENDS_REGISTRY_PATH = FRONTEND_DIR / "agents_registry.json"
 LOGO_PATH = BASE_DIR / "static" / "logo.png"
 ACCENT_COLORS = ["#ff6b00", "#1f2937", "#0ea5a4", "#2563eb", "#16a34a"]
+
+
+def build_hidden_index_table(rows: List[Dict[str, str]]) -> pd.DataFrame:
+    table = pd.DataFrame(rows)
+    table.index = [""] * len(table.index)
+    return table
 
 
 # ── Data helpers ──────────────────────────────────────────────────────────────
@@ -334,7 +341,7 @@ def render_telemetry_panel(
                         if detail and service_status != "ONLINE":
                             service_notes.append(f"{service_name}: {detail}")
 
-                    st.table(service_table_rows)
+                    st.table(build_hidden_index_table(service_table_rows))
                     for note in service_notes:
                         st.caption(note)
 
@@ -347,13 +354,15 @@ def render_telemetry_panel(
         )
         with st.container(key=f"{mode_slug}_neural_block"):
             st.table(
-                [
-                    {
-                        "Metric": label,
-                        "Value": value,
-                    }
-                    for label, value in neural_rows
-                ]
+                build_hidden_index_table(
+                    [
+                        {
+                            "Metric": label,
+                            "Value": value,
+                        }
+                        for label, value in neural_rows
+                    ]
+                )
             )
 
         st.markdown(
@@ -366,11 +375,13 @@ def render_telemetry_panel(
         with st.container(key=f"{mode_slug}_context_block"):
             st.progress(min(max(t["context_pct"] / 100.0, 0.0), 1.0))
             st.table(
-                [
-                    {"Metric": "Prompt", "Value": str(t["prompt_tokens"])},
-                    {"Metric": "Completion", "Value": str(t["completion_tokens"])},
-                    {"Metric": "Total", "Value": f"{t['total_context_tokens']} / 8192"},
-                ]
+                build_hidden_index_table(
+                    [
+                        {"Metric": "Prompt", "Value": str(t["prompt_tokens"])} ,
+                        {"Metric": "Completion", "Value": str(t["completion_tokens"])} ,
+                        {"Metric": "Total", "Value": f"{t['total_context_tokens']} / 8192"},
+                    ]
+                )
             )
 
         st.markdown(
@@ -451,14 +462,16 @@ def render_telemetry_panel(
                 st.info("No air-time data yet.")
             else:
                 st.table(
-                    [
-                        {
-                            "Speaker": str(row["label"]),
-                            "Words": str(int(row["words"])),
-                            "Share": f"{max(0.0, float(row['pct'])):.0f}%",
-                        }
-                        for row in t["airtime_rows"]
-                    ]
+                    build_hidden_index_table(
+                        [
+                            {
+                                "Speaker": str(row["label"]),
+                                "Words": str(int(row["words"])),
+                                "Share": f"{max(0.0, float(row['pct'])):.0f}%",
+                            }
+                            for row in t["airtime_rows"]
+                        ]
+                    )
                 )
 
 

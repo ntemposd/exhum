@@ -88,7 +88,7 @@ async def probe_backend() -> Tuple[bool, str]:
     return _probe_backend_cached(BACKEND_URL)
 
 
-@st.cache_data(ttl=45, show_spinner=False)
+@st.cache_data(ttl=30, show_spinner=False)
 def _fetch_services_status_cached(backend_url: str) -> Dict[str, Any]:
     try:
         with httpx.Client() as client:
@@ -127,8 +127,7 @@ async def fetch_services_status() -> Dict[str, Any]:
     return _fetch_services_status_cached(BACKEND_URL)
 
 
-@st.cache_data(ttl=5, show_spinner=False)
-def _fetch_latest_telemetry_cached(backend_url: str) -> Dict[str, Any]:
+def _fetch_latest_telemetry(backend_url: str) -> Dict[str, Any]:
     try:
         with httpx.Client() as client:
             response = client.get(f"{backend_url}/telemetry/latest", timeout=10)
@@ -141,7 +140,7 @@ def _fetch_latest_telemetry_cached(backend_url: str) -> Dict[str, Any]:
 
 
 async def fetch_latest_telemetry() -> Dict[str, Any]:
-    return _fetch_latest_telemetry_cached(BACKEND_URL)
+    return _fetch_latest_telemetry(BACKEND_URL)
 
 
 async def fetch_agents_from_backend() -> Dict[str, List[Dict[str, str]]]:

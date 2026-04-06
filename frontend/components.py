@@ -8,7 +8,6 @@ import base64
 import html
 import json
 import logging
-import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus
@@ -25,6 +24,7 @@ FRONTEND_DIR = Path(__file__).resolve().parent
 LEGENDS_REGISTRY_PATH = FRONTEND_DIR / "agents_registry.json"
 LOGO_PATH = BASE_DIR / "static" / "logo.png"
 ACCENT_COLORS = ["#ff6b00", "#1f2937", "#0ea5a4", "#2563eb", "#16a34a"]
+SESSION_COST_HELPER_TEXT = "Spend estimate based on generated token volume."
 
 
 def build_hidden_index_table(rows: List[Dict[str, str]]) -> pd.DataFrame:
@@ -125,13 +125,6 @@ def remove_legend_selection(agent_id: str) -> None:
         st.session_state.discussion_active = False
 
 
-def update_debate_entropy() -> None:
-    swing = random.uniform(-0.08, 0.08)
-    st.session_state.debate_entropy = max(
-        0.0, min(1.0, st.session_state.debate_entropy + swing)
-    )
-
-
 def _cancel_topic_edit() -> None:
     st.session_state.topic_edit_mode = False
 
@@ -177,7 +170,7 @@ def render_drafted_chips_component(
                 legend_name = available_agents.get(aid, aid)
                 with col:
                     st.button(
-                        f"{legend_name}  x",
+                        legend_name,
                         key=f"remove_drafted_{aid}",
                         help=f"Remove {legend_name} from the drafted council",
                         use_container_width=True,
@@ -194,27 +187,120 @@ def build_telemetry_snapshot(
 ) -> Dict[str, Any]:
     agent_words: Dict[str, int] = {aid: 0 for aid in selected_agents}
     total_words = 0
+    metrics_history: List[Dict[str, Any]] = []
+    request_rows: List[Dict[str, Any]] = []
     for msg in messages:
         words = len(str(msg.get("message", "")).split())
         total_words += words
         aid = str(msg.get("agent_id", ""))
         agent_words[aid] = agent_words.get(aid, 0) + words
+        execution_metrics = msg.get("execution_metrics")
+        if isinstance(execution_metrics, dict):
+            metrics_history.append(execution_metrics)
+            prompt_value = int(execution_metrics.get("prompt_tokens") or 0)
+            completion_value = int(execution_metrics.get("completion_tokens") or 0)
+            total_value = int(
+                (prompt_value + completion_value)
+                or execution_metrics.get("total_tokens")
+                or 0
+            )
+            turn_number = msg.get("turn_number")
+            row_turn = int(turn_number) if isinstance(turn_number, int) else (len(request_rows) + 1)
+            request_rows.append(
+                {
+                    "request": f"T{row_turn:02d}",
+                    "prompt": prompt_value,
+                    "completion": completion_value,
+                    "total": total_value,
+                }
+            )
 
     estimated_tokens = int(total_words / 0.75) if total_words else 0
     context_limit = 8192
-    prompt_tokens = 0
-    completion_tokens = 0
-    total_context_tokens = estimated_tokens
+    prompt_tokens = sum(int(item.get("prompt_tokens") or 0) for item in metrics_history)
+    completion_tokens = sum(int(item.get("completion_tokens") or 0) for item in metrics_history)
+    total_tokens = sum(
+        int(item.get("total_tokens") or ((item.get("prompt_tokens") or 0) + (item.get("completion_tokens") or 0)) or 0)
+        for item in metrics_history
+    )
+
+    request_prompt_tokens = 0
+    request_completion_tokens = 0
+    request_total_tokens = estimated_tokens
     if latest_metrics:
+        request_prompt_tokens = int(latest_metrics.get("prompt_tokens") or 0)
+        request_completion_tokens = int(latest_metrics.get("completion_tokens") or 0)
+        request_total_tokens = int(
+            (request_prompt_tokens + request_completion_tokens)
+            or latest_metrics.get("total_tokens")
+            or estimated_tokens
+        )
+
+    if not metrics_history and latest_metrics:
         prompt_tokens = int(latest_metrics.get("prompt_tokens") or 0)
         completion_tokens = int(latest_metrics.get("completion_tokens") or 0)
-        total_context_tokens = int(
+        total_tokens = int(
             latest_metrics.get("total_tokens")
             or (prompt_tokens + completion_tokens)
             or estimated_tokens
         )
-    context_pct = min(100.0, (total_context_tokens / context_limit) * 100.0) if total_context_tokens else 0.0
-    burn_usd = (estimated_tokens / 1000.0) * 0.0002
+        request_rows.append(
+            {
+                "request": "T01",
+                "prompt": prompt_tokens,
+                "completion": completion_tokens,
+                "total": total_tokens,
+            }
+        )
+
+    aggregate_total_tokens = total_tokens or estimated_tokens
+    request_context_pct = (
+        (request_total_tokens / context_limit) * 100.0
+        if request_total_tokens
+        else 0.0
+    )
+    token_usage_caption = (
+        "Each row is one model request. Window is measured per request against the 8k context limit."
+        if request_rows
+        else "No request metrics yet."
+    )
+    burn_usd = (aggregate_total_tokens / 1000.0) * 0.0002
+
+    generation_samples = [
+        int(item.get("generation_duration_ms"))
+        for item in metrics_history
+        if isinstance(item.get("generation_duration_ms"), (int, float))
+    ]
+    queue_samples = [
+        int(item.get("queue_time_ms"))
+        for item in metrics_history
+        if isinstance(item.get("queue_time_ms"), (int, float))
+    ]
+    prompt_time_samples = [
+        int(item.get("prompt_time_ms"))
+        for item in metrics_history
+        if isinstance(item.get("prompt_time_ms"), (int, float))
+    ]
+    ttft_samples = [
+        int(item.get("ttft_ms"))
+        for item in metrics_history
+        if isinstance(item.get("ttft_ms"), (int, float))
+    ]
+
+    avg_generation_ms = (
+        sum(generation_samples) / len(generation_samples)
+        if generation_samples
+        else None
+    )
+    avg_queue_ms = sum(queue_samples) / len(queue_samples) if queue_samples else None
+    avg_prompt_ms = sum(prompt_time_samples) / len(prompt_time_samples) if prompt_time_samples else None
+    avg_ttft_ms = sum(ttft_samples) / len(ttft_samples) if ttft_samples else None
+    total_generation_ms = sum(generation_samples)
+    session_tps = (
+        completion_tokens / (total_generation_ms / 1000.0)
+        if completion_tokens and total_generation_ms > 0
+        else None
+    )
 
     st.session_state.estimated_tokens = estimated_tokens
     st.session_state.session_burn_usd = burn_usd
@@ -224,13 +310,12 @@ def build_telemetry_snapshot(
         if aid and aid not in display_agents:
             display_agents.append(aid)
 
-    peak_words = max((agent_words.get(aid, 0) for aid in display_agents), default=0)
     airtime_rows = sorted(
         [
             {
                 "label": available_agents.get(aid, aid) or aid,
                 "words": agent_words.get(aid, 0),
-                "pct": (agent_words.get(aid, 0) / peak_words * 100.0) if peak_words else 0.0,
+                "pct": (agent_words.get(aid, 0) / total_words * 100.0) if total_words else 0.0,
             }
             for aid in display_agents
         ],
@@ -241,12 +326,29 @@ def build_telemetry_snapshot(
     return {
         "latency_ms": float(st.session_state.last_inference_latency_ms),
         "estimated_tokens": estimated_tokens,
+        "perf_turns": len(metrics_history),
+        "avg_generation_ms": avg_generation_ms,
+        "session_tps": session_tps,
+        "avg_queue_ms": avg_queue_ms,
+        "avg_prompt_ms": avg_prompt_ms,
+        "avg_ttft_ms": avg_ttft_ms,
+        "request_prompt_tokens": request_prompt_tokens,
+        "request_completion_tokens": request_completion_tokens,
+        "request_total_tokens": request_total_tokens,
+        "request_count": len(request_rows),
+        "request_rows": request_rows,
+        "context_limit": context_limit,
+        "request_context_pct": request_context_pct,
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,
-        "total_context_tokens": total_context_tokens,
-        "context_pct": context_pct,
+        "total_tokens": aggregate_total_tokens,
+        "token_usage_caption": token_usage_caption,
         "burn_usd": burn_usd,
-        "entropy": float(st.session_state.debate_entropy),
+        "entropy": (
+            float(st.session_state.debate_entropy)
+            if isinstance(st.session_state.debate_entropy, (int, float))
+            else None
+        ),
         "airtime_rows": airtime_rows,
     }
 
@@ -290,189 +392,204 @@ def render_telemetry_panel(
     )
     service_count = len(service_rows)
 
-    if session_metrics and session_telemetry_status == "ok":
-        gen_time_value = session_metrics.get("generation_duration_ms")
-        throughput_value = session_metrics.get("tokens_per_second")
-        ttft_value = session_metrics.get("ttft_ms")
+    if t["perf_turns"] > 0:
+        gen_time_value = t.get("avg_generation_ms")
+        throughput_value = t.get("session_tps")
+        queue_time_value = t.get("avg_queue_ms")
+        prompt_time_value = t.get("avg_prompt_ms")
+        ttft_value = t.get("avg_ttft_ms")
         neural_rows = [
-            ("GEN TIME", f"{int(gen_time_value)}ms" if isinstance(gen_time_value, (int, float)) else "N/A"),
-            ("THROUGHPUT", f"{float(throughput_value):.2f} TPS" if isinstance(throughput_value, (int, float)) else "N/A"),
-            ("TTFT", f"{int(ttft_value)}ms" if isinstance(ttft_value, (int, float)) else "N/A"),
+            ("GEN TIME (AVG)", f"{int(round(gen_time_value))}ms" if isinstance(gen_time_value, (int, float)) else "N/A"),
+            ("QUEUE (AVG)", f"{int(round(queue_time_value))}ms" if isinstance(queue_time_value, (int, float)) else "N/A"),
+            ("PROMPT (AVG)", f"{int(round(prompt_time_value))}ms" if isinstance(prompt_time_value, (int, float)) else "N/A"),
+            ("TTF (AVG)", f"{int(round(ttft_value))}ms" if isinstance(ttft_value, (int, float)) else "N/A"),
+            ("SESSION TPS", f"{float(throughput_value):.2f} TPS" if isinstance(throughput_value, (int, float)) else "N/A"),
         ]
     else:
         neural_rows = [
-            ("GEN TIME", "IDLE"),
-            ("THROUGHPUT", "N/A"),
-            ("TTFT", "N/A"),
+            ("GEN TIME (AVG)", "IDLE"),
+            ("QUEUE (AVG)", "N/A"),
+            ("PROMPT (AVG)", "N/A"),
+            ("TTF (AVG)", "N/A"),
+            ("SESSION TPS", "N/A"),
         ]
     with st.container(key=f"{mode_slug}_panel"):
-        with st.container(key=f"{mode_slug}_system_status_card"):
-            with st.container(key=f"{mode_slug}_system_status_header"):
-                st.markdown(
-                    "<div class='exhum-telemetry-section-heading exhum-telemetry-section-heading-compact'>"
-                    "<span class='exhum-telemetry-section-kicker'>Services</span>"
-                    f"<span class='exhum-telemetry-section-title'><span class='exhum-telemetry-status-dot exhum-telemetry-status-dot-{overall_status_slug}' aria-hidden='true'></span>System Status</span>"
-                    "</div>",
-                    unsafe_allow_html=True,
-                )
-
-            with st.expander(f"Services ({online_services}/{service_count or 0})", expanded=False):
-                if not service_rows:
-                    st.info("Open services to run live checks.")
-                else:
-                    service_table_rows: List[Dict[str, str]] = []
-                    service_notes: List[str] = []
-                    for service in service_rows:
-                        service_name = str(service.get("name", "Unknown Service"))
-                        service_status = str(service.get("status", "OFFLINE")).upper()
-                        latency_ms = service.get("latency_ms")
-                        latency_label = (
-                            f"{int(latency_ms)} ms"
-                            if isinstance(latency_ms, (int, float))
-                            else "--"
-                        )
-                        detail = str(service.get("detail", "") or "").strip()
-                        service_table_rows.append(
-                            {
-                                "Service": service_name,
-                                "Net RTT": latency_label,
-                            }
-                        )
-                        if detail and service_status != "ONLINE":
-                            service_notes.append(f"{service_name}: {detail}")
-
-                    st.table(build_hidden_index_table(service_table_rows))
-                    for note in service_notes:
-                        st.caption(note)
-
-        st.markdown(
-            "<div class='exhum-telemetry-section-heading'>"
-            "<span class='exhum-telemetry-section-kicker'>Inference</span>"
-            "<span class='exhum-telemetry-section-title'>Neural Processing</span>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-        with st.container(key=f"{mode_slug}_neural_block"):
-            st.table(
-                build_hidden_index_table(
-                    [
-                        {
-                            "Metric": label,
-                            "Value": value,
-                        }
-                        for label, value in neural_rows
-                    ]
-                )
-            )
-
-        st.markdown(
-            "<div class='exhum-telemetry-section-heading'>"
-            "<span class='exhum-telemetry-section-kicker'>Capacity</span>"
-            "<span class='exhum-telemetry-section-title'>Context Saturation</span>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-        with st.container(key=f"{mode_slug}_context_block"):
-            st.progress(min(max(t["context_pct"] / 100.0, 0.0), 1.0))
-            st.table(
-                build_hidden_index_table(
-                    [
-                        {"Metric": "Prompt", "Value": str(t["prompt_tokens"])} ,
-                        {"Metric": "Completion", "Value": str(t["completion_tokens"])} ,
-                        {"Metric": "Total", "Value": f"{t['total_context_tokens']} / 8192"},
-                    ]
-                )
-            )
-
-        st.markdown(
-            "<div class='exhum-telemetry-section-heading'>"
-            "<span class='exhum-telemetry-section-kicker'>Spend</span>"
-            "<span class='exhum-telemetry-section-title'>Session Cost</span>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-        with st.container(key=f"{mode_slug}_cost_block"):
+        with st.container(key=f"{mode_slug}_system_status_section"):
             st.markdown(
-                "<div class='exhum-telemetry-cost-card'>"
-                "<div class='exhum-telemetry-cost-topline'>"
-                "<span class='exhum-telemetry-cost-kicker'>Estimated Burn</span>"
-                "<span class='exhum-telemetry-cost-unit'>USD</span>"
-                "</div>"
-                f"<div class='exhum-telemetry-cost-value'>${t['burn_usd']:.6f}</div>"
-                "<div class='exhum-telemetry-cost-caption'>Session-level spend estimate based on generated token volume.</div>"
+                "<div class='exhum-telemetry-section-heading'>"
+                f"<span class='exhum-telemetry-section-title'><span class='exhum-telemetry-status-dot exhum-telemetry-status-dot-{overall_status_slug}' aria-hidden='true'></span>System Status</span>"
                 "</div>",
                 unsafe_allow_html=True,
             )
+            with st.container(key=f"{mode_slug}_system_status_card"):
+                with st.expander(f"Services ({online_services}/{service_count or 0})", expanded=False):
+                    if not service_rows:
+                        st.info("Open services to run live checks.")
+                    else:
+                        service_table_rows: List[Dict[str, str]] = []
+                        service_notes: List[str] = []
+                        for service in service_rows:
+                            service_name = str(service.get("name", "Unknown Service"))
+                            service_status = str(service.get("status", "OFFLINE")).upper()
+                            latency_ms = service.get("latency_ms")
+                            latency_label = (
+                                f"{int(latency_ms)} ms"
+                                if isinstance(latency_ms, (int, float))
+                                else "--"
+                            )
+                            detail = str(service.get("detail", "") or "").strip()
+                            service_table_rows.append(
+                                {
+                                    "Service": service_name,
+                                    "Net RTT": latency_label,
+                                }
+                            )
+                            if detail and service_status != "ONLINE":
+                                service_notes.append(f"{service_name}: {detail}")
 
-        st.markdown(
-            "<div class='exhum-telemetry-section-heading'>"
-            "<span class='exhum-telemetry-section-kicker'>Behavior</span>"
-            "<span class='exhum-telemetry-section-title'>Semantic Diversity</span>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-        current_entropy = float(t["entropy"])
-        target_entropy = float(st.session_state.target_entropy)
-        entropy_scale_max = 1.5
-        current_ratio = max(0.0, min(1.0, current_entropy / entropy_scale_max))
-        target_ratio = max(0.0, min(1.0, target_entropy / entropy_scale_max))
-        similarity_ratio = max(0.0, 1.0 - abs(current_entropy - target_entropy) / entropy_scale_max)
-        similarity_label = "Aligned"
-        if similarity_ratio < 0.85:
-            similarity_label = "Tracking"
-        if similarity_ratio < 0.6:
-            similarity_label = "Off Target"
+                        st.table(build_hidden_index_table(service_table_rows))
+                        for note in service_notes:
+                            st.caption(note)
 
-        with st.container(key=f"{mode_slug}_entropy_block"):
+        with st.container(key=f"{mode_slug}_neural_section"):
             st.markdown(
-                "<div class='exhum-telemetry-entropy-card'>"
-                "<div class='exhum-telemetry-entropy-topline'>"
-                "<span class='exhum-telemetry-entropy-kicker'>Entropy Match</span>"
-                f"<span class='exhum-telemetry-entropy-status'>{similarity_label}</span>"
-                "</div>"
-                "<div class='exhum-telemetry-entropy-values'>"
-                f"<div class='exhum-telemetry-entropy-value-block'><span class='exhum-telemetry-entropy-value-label'>Current</span><span class='exhum-telemetry-entropy-value'>{current_entropy:.2f}</span></div>"
-                f"<div class='exhum-telemetry-entropy-value-block'><span class='exhum-telemetry-entropy-value-label'>Target</span><span class='exhum-telemetry-entropy-value'>{target_entropy:.2f}</span></div>"
-                "</div>"
-                "<div class='exhum-telemetry-entropy-progress'>"
-                "<div class='exhum-telemetry-entropy-progress-labels'>"
-                "<span>Similarity</span>"
-                f"<span>{similarity_ratio * 100:.0f}%</span>"
-                "</div>"
-                "<div class='exhum-telemetry-entropy-track'>"
-                f"<div class='exhum-telemetry-entropy-fill' style='width:{similarity_ratio * 100:.1f}%'></div>"
-                f"<div class='exhum-telemetry-entropy-target-marker' style='left:{target_ratio * 100:.1f}%'></div>"
-                f"<div class='exhum-telemetry-entropy-current-marker' style='left:{current_ratio * 100:.1f}%'></div>"
-                "</div>"
-                "<div class='exhum-telemetry-entropy-caption'>Target marker shows requested diversity. Current marker shows live semantic spread.</div>"
-                "</div>"
+                "<div class='exhum-telemetry-section-heading'>"
+                "<span class='exhum-telemetry-section-title'>Model Performance</span>"
                 "</div>",
                 unsafe_allow_html=True,
             )
-
-        st.markdown(
-            "<div class='exhum-telemetry-section-heading'>"
-            "<span class='exhum-telemetry-section-kicker'>Participation</span>"
-            "<span class='exhum-telemetry-section-title'>Vocal Share</span>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-        with st.container(key=f"{mode_slug}_airtime_block"):
-            if not t["airtime_rows"]:
-                st.info("No air-time data yet.")
-            else:
+            with st.container(key=f"{mode_slug}_neural_block"):
                 st.table(
                     build_hidden_index_table(
                         [
                             {
-                                "Speaker": str(row["label"]),
-                                "Words": str(int(row["words"])),
-                                "Share": f"{max(0.0, float(row['pct'])):.0f}%",
+                                "Metric": label,
+                                "Value": value,
                             }
-                            for row in t["airtime_rows"]
+                            for label, value in neural_rows
                         ]
                     )
                 )
+
+        with st.container(key=f"{mode_slug}_context_section"):
+            st.markdown(
+                "<div class='exhum-telemetry-section-heading'>"
+                "<span class='exhum-telemetry-section-title'>Token Usage</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+            with st.container(key=f"{mode_slug}_context_block"):
+                with st.container(key=f"{mode_slug}_context_shell", border=True):
+                    request_count = int(t["request_count"])
+                    request_label = "Request" if request_count == 1 else "Requests"
+                    st.markdown(
+                        "<div class='exhum-telemetry-token-header'>"
+                        "<div class='exhum-telemetry-context-topline'>"
+                        f"<div class='exhum-telemetry-context-value'>{t['total_tokens']} Tokens</div>"
+                        f"<span class='exhum-telemetry-context-pct'>{request_count} {request_label}</span>"
+                        "</div>"
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
+                    token_rows = [
+                        {
+                            "Turn": str(row["request"]),
+                            "Prompt": str(int(row["prompt"])),
+                            "Comp": str(int(row["completion"])),
+                            "Total": str(int(row["total"])),
+                        }
+                        for row in t["request_rows"]
+                    ]
+                    token_rows.append(
+                        {
+                            "Turn": "Total",
+                            "Prompt": str(int(t["prompt_tokens"])),
+                            "Comp": str(int(t["completion_tokens"])),
+                            "Total": str(int(t["total_tokens"])),
+                        }
+                    )
+                    st.table(build_hidden_index_table(token_rows))
+                    st.markdown(
+                        "<div class='exhum-telemetry-token-note exhum-telemetry-cost-caption'>Each turn is one model request.</div>",
+                        unsafe_allow_html=True,
+                    )
+
+        with st.container(key=f"{mode_slug}_cost_section"):
+            st.markdown(
+                "<div class='exhum-telemetry-section-heading'>"
+                "<span class='exhum-telemetry-section-title'>Session Cost</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+            with st.container(key=f"{mode_slug}_cost_block"):
+                st.markdown(
+                    "<div class='exhum-telemetry-cost-card'>"
+                    f"<div class='exhum-telemetry-cost-value'>${t['burn_usd']:.6f}</div>"
+                    f"<div class='exhum-telemetry-cost-caption'>{SESSION_COST_HELPER_TEXT}</div>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+
+        with st.container(key=f"{mode_slug}_entropy_section"):
+            st.markdown(
+                "<div class='exhum-telemetry-section-heading'>"
+                "<span class='exhum-telemetry-section-title'>Debate Diversity</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+            entropy_value = t.get("entropy")
+            current_entropy = float(entropy_value) if isinstance(entropy_value, (int, float)) else None
+            observed_ratio = max(0.0, min(1.0, current_entropy)) if current_entropy is not None else 0.0
+            spread_label = "No Data"
+            left_value_label = "0.00"
+            if current_entropy is not None:
+                left_value_label = f"{observed_ratio * 100:.0f}%"
+                spread_label = "High Spread"
+                if current_entropy < 0.7:
+                    spread_label = "Moderate"
+                if current_entropy < 0.35:
+                    spread_label = "Low Spread"
+
+            with st.container(key=f"{mode_slug}_entropy_block"):
+                st.markdown(
+                    "<div class='exhum-telemetry-entropy-card'>"
+                    "<div class='exhum-telemetry-entropy-topline'>"
+                    f"<span class='exhum-telemetry-entropy-value-inline'>{left_value_label}</span>"
+                    f"<span class='exhum-telemetry-entropy-status'>{spread_label}</span>"
+                    "</div>"
+                    "<div class='exhum-telemetry-entropy-progress'>"
+                    "<div class='exhum-telemetry-entropy-track'>"
+                    f"<div class='exhum-telemetry-entropy-fill' style='width:{observed_ratio * 100:.1f}%'></div>"
+                    "</div>"
+                    "<div class='exhum-telemetry-entropy-caption'>Diversity calculated as pairwise Jaccard entropy between a response and the immediately preceding one.</div>"
+                    "</div>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+
+        with st.container(key=f"{mode_slug}_airtime_section"):
+            st.markdown(
+                "<div class='exhum-telemetry-section-heading'>"
+                "<span class='exhum-telemetry-section-title'>Vocal Share</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+            with st.container(key=f"{mode_slug}_airtime_block"):
+                if not t["airtime_rows"]:
+                    st.info("No air-time data yet.")
+                else:
+                    st.table(
+                        build_hidden_index_table(
+                            [
+                                {
+                                    "Speaker": str(row["label"]),
+                                    "Words": str(int(row["words"])),
+                                    "Share": f"{max(0.0, float(row['pct'])):.0f}%",
+                                }
+                                for row in t["airtime_rows"]
+                            ]
+                        )
+                    )
 
 
 def render_speaker_card_html(

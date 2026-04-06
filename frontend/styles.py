@@ -19,6 +19,8 @@ def apply_styles() -> None:
 
     .stApp [data-testid="stAppViewContainer"] .main .block-container {
             padding-bottom: 8px;
+            padding-left: 1rem;
+            padding-right: 1rem;
     }
 
     [data-testid="stBottomBlockContainer"] {
@@ -68,6 +70,61 @@ def apply_styles() -> None:
         border-right: 2px solid #000000;
     }
 
+    @media (max-width: 1024px) {
+        header,
+        [data-testid="stHeader"] {
+            z-index: 1000 !important;
+        }
+
+        section[data-testid="stSidebar"] {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            bottom: 0 !important;
+            width: min(22rem, 86vw) !important;
+            min-width: min(22rem, 86vw) !important;
+            max-width: min(22rem, 86vw) !important;
+            height: 100vh !important;
+            z-index: 10020 !important;
+            box-shadow: 8px 0 24px rgba(0, 0, 0, 0.18) !important;
+        }
+
+        section[data-testid="stSidebar"]::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: min(22rem, 86vw);
+            height: 3rem;
+            background: #ffffff;
+            border-right: 2px solid #000000;
+            z-index: 10019;
+            pointer-events: none;
+        }
+
+        section[data-testid="stSidebar"] > div {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        [data-testid="stSidebarCollapseButton"] {
+            position: fixed !important;
+            z-index: 10021 !important;
+            top: 0.45rem !important;
+            left: calc(min(22rem, 86vw) - 3.2rem) !important;
+            right: auto !important;
+        }
+
+        [data-testid="collapsedControl"] {
+            position: fixed !important;
+            z-index: 10021 !important;
+            top: 0.45rem !important;
+            left: 0.55rem !important;
+            right: auto !important;
+        }
+    }
+
     [data-testid="stSidebarCollapseButton"],
     [data-testid="collapsedControl"] {
         transform: scale(1.18) !important;
@@ -77,6 +134,7 @@ def apply_styles() -> None:
     [data-testid="stSidebarCollapseButton"] *,
     [data-testid="collapsedControl"] * {
         font-weight: 900 !important;
+        color: #111111 !important;
     }
 
     [data-testid="stSidebarCollapseButton"] span,
@@ -85,6 +143,9 @@ def apply_styles() -> None:
     [data-testid="collapsedControl"] svg {
         font-weight: 900 !important;
         stroke-width: 3 !important;
+        color: #111111 !important;
+        fill: #111111 !important;
+        stroke: #111111 !important;
     }
 
     .st-key-sidebar_root,
@@ -150,11 +211,180 @@ def apply_styles() -> None:
     .exhum-topic-hero {
         border: 3px solid #000000;
         border-radius: 0;
-        padding: 16px 58px 16px 18px;
+        padding: 16px 18px;
         background: #fff7ed;
         box-shadow: 5px 5px 0 0 #000000;
-        margin-bottom: 12px;
+        margin-bottom: 4px;
         position: relative;
+        min-height: 68px;
+        display: flex;
+        align-items: center;
+    }
+
+    .exhum-discussion-status-row {
+        display: flex;
+        align-items: center;
+        min-height: 22px;
+        margin: 0 0 2px 0;
+        padding: 0;
+    }
+
+    .exhum-discussion-status-note {
+        display: inline-flex;
+        align-items: center;
+        margin: 0;
+        padding: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.92rem;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        line-height: 1;
+        color: #111111 !important;
+        text-transform: none;
+    }
+
+    .exhum-topic-hero-clickable {
+        cursor: pointer;
+        transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    .exhum-topic-hero-clickable:hover {
+        background: #ffedd5;
+        transform: translate(-1px, -1px);
+        box-shadow: 6px 6px 0 0 #000000;
+    }
+
+    .exhum-topic-hero-locked {
+        background: #f3f4f6;
+        color: #6b7280 !important;
+        cursor: not-allowed;
+    }
+
+    .exhum-topic-hero-locked:hover {
+        background: #f3f4f6;
+        transform: none;
+        box-shadow: 5px 5px 0 0 #000000;
+    }
+
+    .exhum-topic-hero-locked .exhum-topic-title {
+        color: #6b7280 !important;
+    }
+
+    .exhum-topic-title {
+        margin: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 1.08rem;
+        font-weight: 700;
+        line-height: 1.45;
+        letter-spacing: 0.01em;
+        color: #111111 !important;
+    }
+
+    .st-key-discussion_topic_shell {
+        margin-bottom: 2px;
+    }
+
+    .exhum-discussion-helper {
+        margin: 6px 0 2px 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.77rem;
+        line-height: 1.25;
+        color: #6b7280 !important;
+    }
+
+    .st-key-discussion_topic_shell [data-testid="stMarkdownContainer"] > div:has(.exhum-discussion-helper) {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    .st-key-discussion_topic_shell [data-testid="element-container"]:has(.exhum-discussion-helper) {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    .st-key-discussion_topic_shell div[class*="st-key-topic_edit_trigger"],
+    .st-key-discussion_topic_shell div[class*="st-key-topic_edit_trigger"] > div,
+    .st-key-discussion_topic_shell div[class*="st-key-topic_edit_trigger"] [data-testid="stButton"],
+    .st-key-discussion_topic_shell iframe {
+        display: block !important;
+        width: 0 !important;
+        max-width: 0 !important;
+        height: 0 !important;
+        max-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        border: 0 !important;
+    }
+
+    .st-key-discussion_topic_shell div[class*="st-key-topic_edit_trigger"] > button,
+    .st-key-discussion_topic_shell div[class*="st-key-topic_edit_trigger"] [data-testid="stButton"] > button,
+    .st-key-discussion_topic_shell div[class*="st-key-topic_edit_trigger"] .stButton > button {
+        position: absolute !important;
+        width: 1px !important;
+        min-width: 1px !important;
+        height: 1px !important;
+        min-height: 1px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:has(.st-key-telemetry_panel) {
+        padding-left: 1rem;
+    }
+
+    .st-key-topic_edit_form [data-testid="stFormSubmitButton"] > button,
+    div[class*="st-key-topic_save_submit"] > button,
+    div[class*="st-key-topic_cancel_submit"] > button,
+    div[class*="st-key-topic_save_submit"] [data-testid="stFormSubmitButton"] > button,
+    div[class*="st-key-topic_cancel_submit"] [data-testid="stFormSubmitButton"] > button {
+        min-height: 48px;
+        background: #ffffff !important;
+        color: #111111 !important;
+        border: 3px solid #000000 !important;
+        box-shadow: 4px 4px 0 0 #000000 !important;
+        text-transform: none !important;
+    }
+
+    .st-key-topic_edit_form [data-testid="stFormSubmitButton"] > button p,
+    .st-key-topic_edit_form [data-testid="stFormSubmitButton"] > button span,
+    .st-key-topic_edit_form [data-testid="stFormSubmitButton"] > button div,
+    div[class*="st-key-topic_save_submit"] > button p,
+    div[class*="st-key-topic_save_submit"] > button span,
+    div[class*="st-key-topic_save_submit"] > button div,
+    div[class*="st-key-topic_cancel_submit"] > button p,
+    div[class*="st-key-topic_cancel_submit"] > button span,
+    div[class*="st-key-topic_cancel_submit"] > button div,
+    div[class*="st-key-topic_save_submit"] [data-testid="stFormSubmitButton"] > button p,
+    div[class*="st-key-topic_cancel_submit"] [data-testid="stFormSubmitButton"] > button p {
+        color: #111111 !important;
+        font-weight: 800 !important;
+    }
+
+    div[class*="st-key-topic_save_submit"] > button,
+    div[class*="st-key-topic_save_submit"] [data-testid="stFormSubmitButton"] > button {
+        background: #facc15 !important;
+    }
+
+    div[class*="st-key-topic_save_submit"] > button:hover,
+    div[class*="st-key-topic_save_submit"] [data-testid="stFormSubmitButton"] > button:hover {
+        background: #eab308 !important;
+        color: #111111 !important;
+        box-shadow: 5px 5px 0 0 #000000 !important;
+    }
+
+    div[class*="st-key-topic_cancel_submit"] > button,
+    div[class*="st-key-topic_cancel_submit"] [data-testid="stFormSubmitButton"] > button {
+        background: #e5e7eb !important;
+    }
+
+    div[class*="st-key-topic_cancel_submit"] > button:hover,
+    div[class*="st-key-topic_cancel_submit"] [data-testid="stFormSubmitButton"] > button:hover {
+        background: #d1d5db !important;
+        color: #111111 !important;
+        box-shadow: 5px 5px 0 0 #000000 !important;
     }
 
     .exhum-topic-edit-link {
@@ -185,24 +415,27 @@ def apply_styles() -> None:
 
     .st-key-sidebar_root .st-key-drafted_council_chips [data-testid="stHorizontalBlock"] {
         gap: 0.65rem;
+        align-items: stretch;
     }
 
     section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="column"] {
         width: 100% !important;
+        display: flex;
     }
 
     section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] {
         width: 100%;
+        height: 100%;
     }
 
     section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] > button,
     section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button {
-        min-height: 40px;
+        min-height: 42px;
         width: 100%;
         max-width: 100%;
         display: flex !important;
         align-items: center !important;
-        justify-content: space-between;
+        justify-content: flex-start;
         text-align: left;
         padding: 7px 10px;
         border: 3px solid #000000 !important;
@@ -218,6 +451,18 @@ def apply_styles() -> None:
         font-family: 'IBM Plex Mono', monospace !important;
         overflow: hidden !important;
         transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] > button::after,
+    section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button::after {
+        content: "x";
+        margin-left: auto;
+        padding-left: 0.65rem;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 1;
+        color: #111111 !important;
     }
 
     section[data-testid="stSidebar"] .st-key-drafted_council_chips [data-testid="stButton"] > button:hover,
@@ -239,6 +484,7 @@ def apply_styles() -> None:
     }
 
     section[data-testid="stSidebar"] div[class*="st-key-remove_drafted_"] button p {
+        margin: 0 !important;
         color: #111111 !important;
         font-family: 'IBM Plex Mono', monospace !important;
         font-size: 0.74rem !important;
@@ -515,12 +761,20 @@ def apply_styles() -> None:
     .exhum-bubble {
         border: 2px solid #000000;
         border-radius: 0;
+        width: 100%;
+        max-width: 100%;
         padding: 14px 18px;
         margin: 10px 0;
-        line-height: 1.6;
-        font-size: 0.95rem;
+        line-height: 1.72;
+        font-size: 1.06rem;
         box-shadow: 4px 4px 0 0 #000000;
         background: #ffffff;
+    }
+
+    .exhum-bubble p {
+        margin: 0;
+        font-size: 1.06rem;
+        line-height: 1.72;
     }
 
     .exhum-bubble-header-main {
@@ -528,7 +782,7 @@ def apply_styles() -> None:
         flex: 1;
         min-width: 0;
         flex-direction: column;
-        gap: 1px;
+        gap: 3px;
     }
 
     .exhum-bubble-progress-track {
@@ -595,9 +849,9 @@ def apply_styles() -> None:
 
     .exhum-header {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 10px;
-        margin-bottom: 8px;
+        margin-bottom: 12px;
     }
 
     .exhum-brand-logo {
@@ -624,6 +878,9 @@ def apply_styles() -> None:
         line-height: 0.95;
         color: #111111;
         margin-bottom: 6px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: clip;
     }
 
     .exhum-brand-subtitle {
@@ -662,7 +919,6 @@ def apply_styles() -> None:
         font-weight: 700;
         font-size: 13px;
         flex-shrink: 0;
-        box-shadow: 2px 2px 0 0 #000000;
     }
 
     .exhum-avatar-img {
@@ -673,15 +929,36 @@ def apply_styles() -> None:
     }
 
     .exhum-name {
-        font-weight: 700;
-        font-size: 0.88rem;
-        letter-spacing: 0.3px;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-weight: 800;
+        font-size: 1.45rem;
+        letter-spacing: 0.04em;
+        line-height: 0.98;
     }
 
     .exhum-meta {
-        font-size: 0.75rem;
-        opacity: 0.8;
+        font-size: 0.76rem;
+        opacity: 0.75;
         margin-left: 0;
+    }
+
+    .exhum-turn-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: auto;
+        min-height: 24px;
+        padding: 0.12rem 0.5rem;
+        border: 2px solid #000000;
+        background: #ffffff;
+        box-shadow: 2px 2px 0 #000000;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.64rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #111111 !important;
+        white-space: nowrap;
     }
 
     .exhum-speaker {
@@ -694,19 +971,12 @@ def apply_styles() -> None:
         border: 2px solid #000000;
         margin-bottom: 6px;
         background: #ffffff;
-        box-shadow: 3px 3px 0 0 #000000;
     }
 
     .exhum-speaker-link {
         display: block;
         text-decoration: none;
         color: inherit !important;
-    }
-
-    .exhum-speaker-count {
-        margin-left: auto;
-        font-size: 0.8rem;
-        opacity: 0.8;
     }
 
     .exhum-speaker-archetype {
@@ -826,18 +1096,6 @@ def apply_styles() -> None:
         border-bottom: 2px solid #111111;
     }
 
-    .exhum-telemetry-kicker {
-        display: block;
-        margin: 0 0 4px 0;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 0.66rem;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: #6b7280 !important;
-        line-height: 1;
-    }
-
     .exhum-telemetry-title {
         margin: 0;
         font-family: 'IBM Plex Mono', monospace !important;
@@ -864,33 +1122,67 @@ def apply_styles() -> None:
         color: #111111;
         margin-top: 0;
         padding-top: 0;
+        --exhum-telemetry-box-gap: 14px;
+        --exhum-telemetry-heading-gap: 8px;
+    }
+
+    .st-key-telemetry_panel > [data-testid="stVerticalBlock"] {
+        gap: 0 !important;
+    }
+
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_system_status_section),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_neural_section),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_context_section),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_cost_section),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_entropy_section),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_airtime_section) {
+        margin: 0 0 var(--exhum-telemetry-box-gap) 0 !important;
+    }
+
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_airtime_section) {
+        margin-bottom: 0 !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_section > [data-testid="stVerticalBlock"],
+    .st-key-exhum_telemetry_neural_section > [data-testid="stVerticalBlock"],
+    .st-key-exhum_telemetry_context_section > [data-testid="stVerticalBlock"],
+    .st-key-exhum_telemetry_cost_section > [data-testid="stVerticalBlock"],
+    .st-key-exhum_telemetry_entropy_section > [data-testid="stVerticalBlock"],
+    .st-key-exhum_telemetry_airtime_section > [data-testid="stVerticalBlock"] {
+        gap: var(--exhum-telemetry-heading-gap) !important;
+    }
+
+    .st-key-exhum_telemetry_entropy_section,
+    .st-key-exhum_telemetry_airtime_section {
+        padding-top: var(--exhum-telemetry-box-gap);
+    }
+
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.exhum-telemetry-section-heading),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_system_status_card),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_neural_block),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_context_block),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_cost_block),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_entropy_block),
+    .st-key-telemetry_panel [data-testid="element-container"]:has(.st-key-exhum_telemetry_airtime_block) {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
     }
 
     .exhum-telemetry-section-heading {
         display: flex;
         flex-direction: column;
         gap: 2px;
-        margin: 14px 0 8px 0;
+        margin: 0;
     }
 
     .exhum-telemetry-section-heading-compact {
         margin: 0;
     }
 
-    .exhum-telemetry-section-kicker {
-        display: block;
-        margin: 0;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 0.63rem;
-        font-weight: 800;
-        letter-spacing: 0.11em;
-        text-transform: uppercase;
-        line-height: 1;
-        color: #6b7280 !important;
-    }
-
     .exhum-telemetry-section-title {
-        display: block;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
         margin: 0;
         font-family: 'IBM Plex Mono', monospace !important;
         font-size: 1rem;
@@ -899,17 +1191,19 @@ def apply_styles() -> None:
         text-transform: uppercase;
         line-height: 1.05;
         color: #111111 !important;
+        padding-bottom: 0.35rem;
     }
 
     .exhum-telemetry-status-dot {
         display: inline-block;
+        flex: 0 0 auto;
         width: 0.72rem;
         height: 0.72rem;
-        margin-right: 0.45rem;
+        margin-right: 0;
         border: 2px solid #111111;
         border-radius: 999px;
         box-shadow: 1px 1px 0 #000000;
-        vertical-align: middle;
+        vertical-align: baseline;
     }
 
     .exhum-telemetry-status-dot-optimal,
@@ -928,12 +1222,22 @@ def apply_styles() -> None:
     }
 
     .st-key-exhum_telemetry_system_status_card {
-        margin: 0 0 10px 0;
+        margin: 0;
         border: 3px solid #000000;
         border-radius: 0;
         background: #ffffff;
         box-shadow: 6px 6px 0 #000000;
         padding: 12px 12px 10px 12px;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="element-container"],
+    .st-key-exhum_telemetry_neural_block [data-testid="element-container"],
+    .st-key-exhum_telemetry_context_block [data-testid="element-container"],
+    .st-key-exhum_telemetry_cost_block [data-testid="element-container"],
+    .st-key-exhum_telemetry_entropy_block [data-testid="element-container"],
+    .st-key-exhum_telemetry_airtime_block [data-testid="element-container"] {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
     }
 
     .st-key-exhum_telemetry_system_status_card details {
@@ -942,9 +1246,8 @@ def apply_styles() -> None:
         background: transparent;
         box-shadow: none;
         padding: 0;
-        border-top: 2px solid #111111;
-        margin-top: 6px;
-        padding-top: 6px;
+        margin-top: 0;
+        padding-top: 0;
     }
 
     .st-key-exhum_telemetry_system_status_card summary {
@@ -953,7 +1256,7 @@ def apply_styles() -> None:
         font-weight: 800;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        padding-top: 8px;
+        padding-top: 0;
         color: #111111 !important;
         background: #ffffff !important;
     }
@@ -967,7 +1270,8 @@ def apply_styles() -> None:
     }
 
     .st-key-exhum_telemetry_system_status_card [data-testid="stExpander"] {
-        margin-top: 10px;
+        margin-top: 0;
+        margin-bottom: 0;
     }
 
     .st-key-exhum_telemetry_neural_block [data-testid="stVerticalBlockBorderWrapper"] {
@@ -975,17 +1279,93 @@ def apply_styles() -> None:
         border-radius: 0 !important;
         background: #ffffff !important;
         box-shadow: 6px 6px 0 #000000 !important;
+        margin: 0 !important;
     }
 
+    .st-key-exhum_telemetry_neural_block,
     .st-key-exhum_telemetry_context_block,
     .st-key-exhum_telemetry_cost_block,
     .st-key-exhum_telemetry_entropy_block,
     .st-key-exhum_telemetry_airtime_block {
-        margin-bottom: 10px;
+        margin: 0;
     }
 
-    .st-key-exhum_telemetry_cost_block {
-        margin-bottom: 10px;
+    .st-key-exhum_telemetry_context_block > [data-testid="stVerticalBlock"] {
+        gap: 0.45rem;
+    }
+
+    .st-key-exhum_telemetry_context_shell,
+    .st-key-exhum_telemetry_context_shell[data-testid="stVerticalBlockBorderWrapper"],
+    .st-key-exhum_telemetry_context_shell [data-testid="stVerticalBlockBorderWrapper"] {
+        border: 3px solid #000000 !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        box-shadow: 6px 6px 0 #000000 !important;
+        padding: 0.8rem 0.85rem 0.75rem 0.85rem;
+        margin: 0 !important;
+    }
+
+    .st-key-exhum_telemetry_context_shell > [data-testid="stVerticalBlock"] {
+        gap: 0.5rem;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stMarkdownContainer"] > p {
+        margin: 0;
+    }
+
+    .exhum-telemetry-token-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding-bottom: 0.45rem;
+        border-bottom: 2px solid #111111;
+        margin-bottom: 1rem;
+    }
+
+    .exhum-telemetry-token-note {
+        border-top: 2px solid #111111;
+        margin-top: 0.15rem;
+        padding-top: 0.45rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .exhum-telemetry-context-topline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .exhum-telemetry-context-value {
+        display: block;
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: 0;
+        margin: 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 1.15rem;
+        font-weight: 800;
+        line-height: 1.05;
+        letter-spacing: 0.01em;
+        color: #111111 !important;
+    }
+
+    .exhum-telemetry-context-pct {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+        min-height: 22px;
+        padding: 0.08rem 0.45rem;
+        border: 2px solid #000000;
+        background: #ffffff;
+        box-shadow: 2px 2px 0 #000000;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.66rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: 0.06em;
+        color: #111111 !important;
     }
 
     .st-key-exhum_telemetry_cost_block [data-testid="stMarkdownContainer"] {
@@ -999,57 +1379,20 @@ def apply_styles() -> None:
     .exhum-telemetry-cost-card {
         display: flex;
         flex-direction: column;
-        gap: 0.45rem;
+            gap: 0.5rem;
         width: 100%;
         border: 3px solid #000000;
-        background: #fff7ed;
+        background: #ffffff;
         box-shadow: 6px 6px 0 #000000;
         padding: 0.8rem 0.85rem 0.75rem 0.85rem;
-    }
-
-    .exhum-telemetry-cost-topline {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding-bottom: 0.4rem;
-        border-bottom: 2px solid #111111;
-    }
-
-    .exhum-telemetry-cost-kicker {
-        display: block;
-        margin: 0;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 0.64rem;
-        font-weight: 800;
-        letter-spacing: 0.11em;
-        text-transform: uppercase;
-        line-height: 1;
-        color: #7c2d12 !important;
-    }
-
-    .exhum-telemetry-cost-unit {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 22px;
-        padding: 0.08rem 0.45rem;
-        border: 2px solid #000000;
-        background: #ffffff;
-        box-shadow: 2px 2px 0 #000000;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 0.62rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #111111 !important;
-        white-space: nowrap;
     }
 
     .exhum-telemetry-cost-value {
         display: block;
         width: 100%;
         margin: 0;
+            padding-bottom: 0.45rem;
+            border-bottom: 2px solid #111111;
         font-family: 'IBM Plex Mono', monospace !important;
         font-size: 1.4rem;
         font-weight: 800;
@@ -1065,10 +1408,6 @@ def apply_styles() -> None:
         font-weight: 500;
         line-height: 1.35;
         color: #57534e !important;
-    }
-
-    .st-key-exhum_telemetry_context_block > [data-testid="stVerticalBlock"] {
-        gap: 0.45rem;
     }
 
     .st-key-exhum_telemetry_neural_block [data-testid="stCaptionContainer"],
@@ -1091,38 +1430,6 @@ def apply_styles() -> None:
         align-items: center;
     }
 
-    .st-key-exhum_telemetry_system_status_header {
-        margin-bottom: 2px;
-    }
-
-    .st-key-exhum_telemetry_system_status_header [data-testid="column"] {
-        display: flex;
-        align-items: center;
-        min-height: 28px;
-    }
-
-    .st-key-exhum_telemetry_system_status_header [data-testid="column"]:first-child {
-        justify-content: flex-start;
-    }
-
-    .st-key-exhum_telemetry_system_status_header [data-testid="column"]:last-child {
-        justify-content: flex-end;
-    }
-
-    .st-key-exhum_telemetry_system_status_header [data-testid="stHorizontalBlock"] {
-        align-items: center;
-        gap: 0.4rem;
-    }
-
-    .st-key-exhum_telemetry_system_status_header [data-testid="stMarkdownContainer"] > h5 {
-        display: flex;
-        align-items: center;
-        margin: 0;
-        font-size: 1rem;
-        line-height: 1;
-        min-height: 24px;
-    }
-
     .st-key-exhum_telemetry_system_status_card [data-testid="stExpanderDetails"] {
         padding-top: 4px;
     }
@@ -1138,13 +1445,16 @@ def apply_styles() -> None:
         box-shadow: 6px 6px 0 #000000;
         background: #ffffff;
         overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-gutter: stable both-edges;
     }
 
     .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] > div,
     .st-key-exhum_telemetry_neural_block [data-testid="stTable"] > div,
     .st-key-exhum_telemetry_context_block [data-testid="stTable"] > div,
     .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] > div {
-        width: 100% !important;
+        width: max-content !important;
+        min-width: 100% !important;
         max-width: 100% !important;
     }
 
@@ -1160,10 +1470,10 @@ def apply_styles() -> None:
     .st-key-exhum_telemetry_neural_block [data-testid="stTable"] table,
     .st-key-exhum_telemetry_context_block [data-testid="stTable"] table,
     .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] table {
-        width: 100%;
-        min-width: 100%;
+        width: max-content !important;
+        min-width: 100% !important;
         border-collapse: collapse;
-        table-layout: fixed;
+        table-layout: auto !important;
         background: #ffffff !important;
     }
 
@@ -1206,6 +1516,7 @@ def apply_styles() -> None:
         padding: 0.3rem 0.55rem !important;
         text-align: left !important;
         line-height: 1.05 !important;
+        white-space: nowrap !important;
     }
 
     .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] td,
@@ -1218,7 +1529,19 @@ def apply_styles() -> None:
         line-height: 1.2 !important;
         border-bottom: 1px solid #d1d5db !important;
         padding: 0.42rem 0.55rem !important;
-        white-space: nowrap;
+        white-space: nowrap !important;
+    }
+
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] table,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] thead,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] tbody,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] tr,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] th,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] td,
+    .st-key-exhum_telemetry_neural_block [data-testid="stTable"] * {
+        white-space: nowrap !important;
+        word-break: keep-all !important;
+        overflow-wrap: normal !important;
     }
 
     .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] th:nth-child(2),
@@ -1279,8 +1602,8 @@ def apply_styles() -> None:
     .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] td:nth-child(2),
     .st-key-exhum_telemetry_airtime_block [data-testid="stTable"] td:nth-child(2) * {
         white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
     }
 
     .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] tbody tr:last-child td,
@@ -1313,6 +1636,78 @@ def apply_styles() -> None:
         overflow: hidden;
     }
 
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] table {
+        background: transparent !important;
+        table-layout: auto !important;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] thead tr {
+        background: transparent !important;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] th {
+        background: transparent !important;
+        padding: 0 0.15rem 0.35rem 0.15rem !important;
+        border-bottom: 1px solid #111111 !important;
+        font-size: 0.58rem !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] tbody tr > *:first-child,
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] colgroup col:first-child {
+        display: none !important;
+        width: 0 !important;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] td {
+        background: transparent !important;
+        padding: 0.42rem 0.15rem !important;
+        border-bottom: 1px solid #9ca3af !important;
+        font-size: 0.68rem !important;
+        line-height: 1.15 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] tbody tr:last-child td {
+        border-bottom: none !important;
+        padding-bottom: 0 !important;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] th:nth-child(2),
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] td:nth-child(2) {
+        width: 22%;
+        text-align: left !important;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] th:nth-child(3),
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] td:nth-child(3) {
+        width: 26%;
+        text-align: right !important;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] th:nth-child(4),
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] td:nth-child(4) {
+        width: 26%;
+        text-align: right !important;
+    }
+
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] th:nth-child(5),
+    .st-key-exhum_telemetry_context_shell [data-testid="stTable"] td:nth-child(5) {
+        width: 26%;
+        text-align: right !important;
+    }
+
     @media (max-width: 768px) {
         [data-testid="stMain"] h2 {
             margin: 4px 0 8px 0;
@@ -1323,12 +1718,16 @@ def apply_styles() -> None:
             padding: 10px 10px 8px 10px;
         }
 
-        .st-key-exhum_telemetry_neural_block [data-testid="stVerticalBlockBorderWrapper"] {
-            box-shadow: 4px 4px 0 #000000 !important;
+        .st-key-exhum_telemetry_context_shell [data-testid="stTable"] td {
+            font-size: 0.64rem !important;
         }
 
-        .st-key-exhum_telemetry_system_status_header [data-testid="column"] {
-            min-height: 24px;
+        .st-key-exhum_telemetry_context_shell [data-testid="stTable"] th {
+            font-size: 0.54rem !important;
+        }
+
+        .st-key-exhum_telemetry_neural_block [data-testid="stVerticalBlockBorderWrapper"] {
+            box-shadow: 4px 4px 0 #000000 !important;
         }
 
         .st-key-exhum_telemetry_system_status_card [data-testid="stTable"],
@@ -1342,6 +1741,12 @@ def apply_styles() -> None:
             box-shadow: 4px 4px 0 #000000;
         }
 
+        .st-key-exhum_telemetry_context_shell,
+        .st-key-exhum_telemetry_context_shell[data-testid="stVerticalBlockBorderWrapper"],
+        .st-key-exhum_telemetry_context_shell [data-testid="stVerticalBlockBorderWrapper"] {
+            box-shadow: 4px 4px 0 #000000 !important;
+        }
+
         .st-key-exhum_telemetry_context_block [data-testid="stProgressBar"] > div {
             box-shadow: 4px 4px 0 #000000;
         }
@@ -1353,7 +1758,7 @@ def apply_styles() -> None:
         gap: 0.55rem;
         width: 100%;
         border: 3px solid #000000;
-        background: #eef6ff;
+        background: #ffffff;
         box-shadow: 6px 6px 0 #000000;
         padding: 0.8rem 0.85rem 0.75rem 0.85rem;
     }
@@ -1365,16 +1770,12 @@ def apply_styles() -> None:
         gap: 0.75rem;
     }
 
-    .exhum-telemetry-entropy-kicker {
-        display: block;
-        margin: 0;
+    .exhum-telemetry-entropy-value-inline {
         font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 0.64rem;
+        font-size: 1.28rem;
         font-weight: 800;
-        letter-spacing: 0.11em;
-        text-transform: uppercase;
-        line-height: 1;
-        color: #1d4ed8 !important;
+        line-height: 1.02;
+        color: #111111 !important;
     }
 
     .exhum-telemetry-entropy-status {
@@ -1395,55 +1796,10 @@ def apply_styles() -> None:
         white-space: nowrap;
     }
 
-    .exhum-telemetry-entropy-values {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.65rem;
-        padding-bottom: 0.45rem;
-        border-bottom: 2px solid #111111;
-    }
-
-    .exhum-telemetry-entropy-value-block {
-        display: flex;
-        flex-direction: column;
-        gap: 0.18rem;
-        min-width: 0;
-    }
-
-    .exhum-telemetry-entropy-value-label {
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 0.63rem;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #4b5563 !important;
-    }
-
-    .exhum-telemetry-entropy-value {
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 1.28rem;
-        font-weight: 800;
-        line-height: 1.02;
-        color: #111111 !important;
-    }
-
     .exhum-telemetry-entropy-progress {
         display: flex;
         flex-direction: column;
         gap: 0.38rem;
-    }
-
-    .exhum-telemetry-entropy-progress-labels {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 0.67rem;
-        font-weight: 800;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: #111111 !important;
     }
 
     .exhum-telemetry-entropy-track {
@@ -1461,25 +1817,6 @@ def apply_styles() -> None:
         height: 100%;
         background: #0ea5a4;
         border-right: 2px solid #000000;
-    }
-
-    .exhum-telemetry-entropy-target-marker,
-    .exhum-telemetry-entropy-current-marker {
-        position: absolute;
-        top: -2px;
-        bottom: -2px;
-        width: 0;
-        border-left: 2px solid #000000;
-        transform: translateX(-1px);
-        z-index: 2;
-    }
-
-    .exhum-telemetry-entropy-target-marker {
-        border-left-color: #dc2626;
-    }
-
-    .exhum-telemetry-entropy-current-marker {
-        border-left-color: #111111;
     }
 
     .exhum-telemetry-entropy-caption {
@@ -1512,7 +1849,16 @@ def apply_styles() -> None:
         font-weight: 500;
         margin-top: 0;
         margin-bottom: 2px;
-        color: #555555;
+        color: #111111;
+    }
+
+    .exhum-sidebar-button-note {
+        margin: 0.2rem 0 0.55rem 0;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 0.66rem;
+        font-weight: 500;
+        line-height: 1.35;
+        color: #111111 !important;
     }
 
     .st-key-sidebar_entropy [data-testid="stSliderTickBar"] {
@@ -1566,6 +1912,9 @@ def apply_styles() -> None:
         min-height: 42px;
         font-size: 0.9rem;
         font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         white-space: nowrap;
@@ -1597,6 +1946,27 @@ def apply_styles() -> None:
         color: inherit !important;
         font-weight: 800 !important;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    section[data-testid="stSidebar"] .stButton > button > div,
+    section[data-testid="stSidebar"] [data-testid="stButton"] > button > div,
+    section[data-testid="stSidebar"] .stFormSubmitButton > button > div,
+    section[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button > div,
+    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button > div,
+    section[data-testid="stSidebar"] .stButton > button p,
+    section[data-testid="stSidebar"] [data-testid="stButton"] > button p,
+    section[data-testid="stSidebar"] .stFormSubmitButton > button p,
+    section[data-testid="stSidebar"] [data-testid="stFormSubmitButton"] > button p,
+    section[data-testid="stSidebar"] div[class*="st-key-new_session_button"] button p {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 100%;
+        min-width: 0;
     }
 
     section[data-testid="stSidebar"] .stButton > button[kind="primary"],
@@ -1687,6 +2057,7 @@ def apply_styles() -> None:
             font-size: 0.82rem;
         }
     }
+
     </style>
     """,
         unsafe_allow_html=True,

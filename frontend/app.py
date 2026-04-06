@@ -18,6 +18,7 @@ from styles import apply_styles
 import api
 from components import (
     ACCENT_COLORS,
+    SESSION_COST_HELPER_TEXT,
     get_style_index,
     get_avatar_url,
     get_logo_data_uri,
@@ -30,7 +31,6 @@ from components import (
     _cancel_topic_edit,
     _toggle_message_expansion,
     render_entropy_slider_control,
-    update_debate_entropy,
 )
 
 st.set_page_config(
@@ -44,6 +44,52 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 apply_styles()
+st.markdown(
+    """
+    <style>
+    @media (max-width: 1024px) {
+        .stApp [data-testid="stAppViewContainer"] .main .block-container {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+            gap: 0.75rem !important;
+        }
+
+        div[data-testid="column"] {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+            min-width: 100% !important;
+        }
+
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        .exhum-telemetry-title,
+        .exhum-sidebar-heading,
+        .exhum-section-title,
+        .exhum-brand-title {
+            white-space: nowrap;
+        }
+
+        .stButton > button,
+        .stFormSubmitButton > button,
+        .stDownloadButton > button,
+        .stTextInput,
+        .stTextInput > div,
+        .stSelectbox,
+        .stSlider {
+            width: 100% !important;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 def ensure_sidebar_open_on_load() -> None:
@@ -51,28 +97,27 @@ def ensure_sidebar_open_on_load() -> None:
         """
         <script>
         (function () {
-          const SESSION_KEY = "exhumed_sidebar_opened_once";
           const parentWindow = window.parent;
           const parentDoc = parentWindow.document;
 
           function openSidebarIfNeeded() {
-            const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
+                        if (parentWindow.__exhumSidebarAutoOpened) {
+                            return true;
+                        }
+
+                        const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
             const collapsedControl =
               parentDoc.querySelector('[data-testid="collapsedControl"] button') ||
               parentDoc.querySelector('[data-testid="collapsedControl"]');
 
-            if (sessionStorage.getItem(SESSION_KEY) === "1") {
-              return true;
-            }
-
-            if (sidebar && collapsedControl) {
+                        if (collapsedControl) {
               collapsedControl.click();
-              sessionStorage.setItem(SESSION_KEY, "1");
+                            parentWindow.__exhumSidebarAutoOpened = true;
               return true;
             }
 
-            if (sidebar && !collapsedControl) {
-              sessionStorage.setItem(SESSION_KEY, "1");
+                        if (sidebar && sidebar.getAttribute('aria-expanded') !== 'false') {
+                            parentWindow.__exhumSidebarAutoOpened = true;
               return true;
             }
 
@@ -91,6 +136,8 @@ def ensure_sidebar_open_on_load() -> None:
 
           observer.observe(parentDoc.body, { childList: true, subtree: true });
           setTimeout(() => observer.disconnect(), 4000);
+
+          parentWindow.addEventListener('load', openSidebarIfNeeded, { once: true });
         })();
         </script>
         """,
@@ -154,8 +201,257 @@ def handle_topic_edit_button_click() -> None:
 
 def _render_message_body(raw_body: str, is_expanded: bool) -> str:
     if len(raw_body) <= 280 or is_expanded:
-        return html.escape(raw_body)
-    return html.escape(raw_body[:280].rstrip() + "...")
+        visible_text = raw_body
+    else:
+        visible_text = raw_body[:280].rstrip() + "..."
+    escaped = html.escape(visible_text)
+    return escaped.replace("\n\n", "<br><br>").replace("\n", "<br>")
+
+
+def render_discussion_panel(
+    available_agents: Dict[str, str],
+    legend_map: Dict[str, Dict[str, str]],
+    display_speakers: list[str],
+    agent_counts: Dict[str, int],
+    speaker_progress_bars: Dict[str, Any],
+) -> None:
+    with st.container(key="discussion_panel"):
+        topic_locked = st.session_state.discussion_started or len(st.session_state.messages) > 0
+        st.markdown(
+            "<div class='exhum-telemetry-hero'>"
+            "<div class='exhum-telemetry-title'>Discussion</div>"
+            "<p class='exhum-telemetry-subtitle'>Debate topic and transcript.</p>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        status_live = st.session_state.discussion_started or len(st.session_state.messages) > 0
+        status_text = "Live" if status_live else "Dormant"
+        st.markdown(
+            "<div class='exhum-discussion-status-row'>"
+            f"<span class='exhum-discussion-status-note'>Status: {status_text}</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        if not st.session_state.topic_edit_mode:
+            st.session_state.topic_edit_buffer = st.session_state.topic_input
+            safe_topic = html.escape(st.session_state.topic_input)
+            with st.container(key="discussion_topic_shell"):
+                topic_card_class = "exhum-topic-hero exhum-topic-hero-clickable"
+                if topic_locked:
+                    topic_card_class += " exhum-topic-hero-locked"
+                st.markdown(
+                    f"<div class='{topic_card_class}' data-topic-editable={'false' if topic_locked else 'true'}>"
+                    f"<p class='exhum-topic-title'>{safe_topic}</p>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+                helper_text = (
+                    "Discussion theme is locked after the debate starts."
+                    if topic_locked
+                    else "Click the discussion theme box above to edit it."
+                )
+                st.markdown(
+                    f"<div class='exhum-discussion-helper'>{helper_text}</div>",
+                    unsafe_allow_html=True,
+                )
+                st.button(
+                    "Edit discussion theme",
+                    key="topic_edit_trigger",
+                    help=TOPIC_LOCKED_MESSAGE if topic_locked else "Click to edit discussion theme",
+                    on_click=handle_topic_edit_button_click,
+                    use_container_width=False,
+                    disabled=topic_locked,
+                )
+                if not topic_locked:
+                    components.html(
+                        """
+                        <script>
+                        (function () {
+                          const parentDoc = window.parent.document;
+                                                function bindTopicClick() {
+                                                    const shell = parentDoc.querySelector('.st-key-discussion_topic_shell');
+                                                    if (!shell) return false;
+
+                                                    const card = shell.querySelector('.exhum-topic-hero-clickable[data-topic-editable="true"]');
+                                                    const trigger = shell.querySelector('div[class*="st-key-topic_edit_trigger"] button') ||
+                                                        shell.querySelector('[data-testid="stButton"] button');
+
+                                                    if (!card || !trigger) return false;
+                                                    if (card.dataset.topicClickBound === 'true') return true;
+
+                                                    const openEditor = function (event) {
+                                                        event.preventDefault();
+                                                        event.stopPropagation();
+                                                        trigger.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: parentDoc.defaultView }));
+                                                    };
+
+                                                    card.dataset.topicClickBound = 'true';
+                                                    card.setAttribute('role', 'button');
+                                                    card.setAttribute('tabindex', '0');
+                                                    card.addEventListener('click', openEditor);
+                                                    card.addEventListener('keydown', function (event) {
+                                                        if (event.key === 'Enter' || event.key === ' ') {
+                                                            openEditor(event);
+                                                        }
+                                                    });
+                                                    return true;
+                                                }
+
+                                                if (bindTopicClick()) return;
+
+                                                let attempts = 0;
+                                                const interval = window.setInterval(function () {
+                                                    attempts += 1;
+                                                    if (bindTopicClick() || attempts > 30) {
+                                                        window.clearInterval(interval);
+                                                    }
+                                                }, 150);
+                        })();
+                        </script>
+                        """,
+                        height=0,
+                        width=0,
+                    )
+        else:
+            with st.form("topic_edit_form", border=False):
+                st.text_input(
+                    "Discussion Topic",
+                    key="topic_edit_buffer",
+                    help="Edit the discussion theme and save when ready.",
+                )
+                c_save, c_cancel = st.columns(2)
+                with c_save:
+                    save_topic = st.form_submit_button(
+                        "💾 Save Topic",
+                        key="topic_save_submit",
+                        use_container_width=True,
+                    )
+                with c_cancel:
+                    cancel_topic = st.form_submit_button(
+                        "↩️ Cancel",
+                        key="topic_cancel_submit",
+                        use_container_width=True,
+                    )
+
+            if save_topic:
+                save_topic_from_inline_editor()
+                st.rerun()
+            elif cancel_topic:
+                _cancel_topic_edit()
+                st.rerun()
+
+        if display_speakers:
+            for aid in display_speakers:
+                stored_name = next(
+                    (
+                        m.get("display_name")
+                        for m in st.session_state.messages
+                        if m.get("agent_id") == aid and m.get("display_name")
+                    ),
+                    None,
+                )
+                name = available_agents.get(aid) or stored_name or aid
+                idx = get_style_index(aid)
+                accent = ACCENT_COLORS[idx]
+                avatar_url = get_avatar_url(aid, name)
+                archetype = legend_map.get(aid, {}).get("archetype", "")
+                speaker_progress_bars[aid] = {
+                    "name": name,
+                    "avatar_url": avatar_url,
+                    "accent": accent,
+                    "turns": agent_counts.get(aid, 0),
+                    "archetype": archetype,
+                }
+
+        render_discussion_messages(available_agents)
+
+
+def render_telemetry_section(available_agents: Dict[str, str]) -> None:
+    with st.container(key="telemetry_panel"):
+        st.markdown(
+            "<div class='exhum-telemetry-hero'>"
+            "<div class='exhum-telemetry-title'>Telemetry</div>"
+            "<p class='exhum-telemetry-subtitle'>Live app metrics.</p>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        render_telemetry_panel(
+            messages=st.session_state.messages,
+            selected_agents=st.session_state.selected_agents,
+            available_agents=available_agents,
+            key_prefix="exhum_telemetry",
+            fetch_live=True,
+        )
+
+
+@st.fragment
+def render_discussion_messages(available_agents: Dict[str, str]) -> None:
+    with st.container(border=False):
+        if not st.session_state.messages:
+            st.markdown(
+                "<div class='exhum-empty'><h3>🎬 Ready to start</h3>"
+                "<p>Use 🪏 Select Speaker and Press ▶️ Start Debate</p></div>",
+                unsafe_allow_html=True,
+            )
+            return
+
+        for message_index, msg in enumerate(st.session_state.messages):
+            aid = msg.get("agent_id", "")
+            name = available_agents.get(aid) or msg.get("display_name") or aid
+            idx = get_style_index(aid)
+            accent = ACCENT_COLORS[idx]
+            avatar_url = get_avatar_url(aid, name)
+            ts = msg.get("created_at", "")
+            if ts and "T" in ts:
+                ts = ts.split("T")[1][:5]
+
+            turn = msg.get("turn_number", "-")
+            raw_body = str(msg.get("message", ""))
+            is_thinking = bool(msg.get("is_thinking"))
+            message_key = f"{aid}-{turn}-{message_index}"
+            is_expanded = message_key in st.session_state.expanded_message_keys
+            body = _render_message_body(raw_body, is_expanded)
+            turn_chip_label = f"Turn {turn} | {ts}" if ts else f"Turn {turn}"
+            progress = float(st.session_state.speaker_progress.get(aid, 0.0))
+            thinking_text = "<span class='exhum-thinking-pulse'>Agent is formulating logic...</span>"
+            thinking_progress_html = ""
+            if is_thinking:
+                thinking_progress_html = (
+                    "<div class='exhum-bubble-progress-track exhum-bubble-progress-track-inline'>"
+                    f"<div class='exhum-bubble-progress-fill' style='width:{max(8.0, progress * 100.0):.1f}%'></div>"
+                    "</div>"
+                )
+
+            with st.container():
+                st.markdown(
+                    f"<div class='exhum-bubble exhum-bubble-{idx}'>"
+                    f"{thinking_progress_html}"
+                    f"<div class='exhum-header exhum-bubble-header-static'>"
+                    f"<div class='exhum-avatar' style='background:{accent}22; color:{accent};'>"
+                    f"<img class='exhum-avatar-img' src='{avatar_url}' alt='{name}' />"
+                    "</div>"
+                    "<div class='exhum-bubble-header-main'>"
+                    f"<span class='exhum-name' style='color:{accent};'>{name}</span>"
+                    "</div>"
+                    f"<span class='exhum-turn-chip'>{turn_chip_label}</span>"
+                    "</div>"
+                    f"<p>{thinking_text if is_thinking else body}</p>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+                if (not is_thinking) and len(raw_body) > 280:
+                    st.markdown(
+                        f"<span class='exhum-read-more-anchor exhum-read-more-color-{idx}'></span>",
+                        unsafe_allow_html=True,
+                    )
+                    st.button(
+                        "Read less" if is_expanded else "Read more",
+                        key=f"toggle_message_{message_key}",
+                        on_click=_toggle_message_expansion,
+                        args=(message_key,),
+                    )
 
 
 # ============================================================================
@@ -178,7 +474,7 @@ def init_session_state() -> None:
         "speaker_progress": {},
         "default_legends_seeded": False,
         "last_inference_latency_ms": 0.0,
-        "debate_entropy": 0.37,
+        "debate_entropy": None,
         "estimated_tokens": 0,
         "session_burn_usd": 0.0,
         "target_entropy": 0.7,
@@ -186,7 +482,6 @@ def init_session_state() -> None:
         "current_turn_number": 1,
         "thinking_message_id": "",
         "thinking_visible": False,
-        "telemetry_live": False,
         "agents_backend_url": "",
         "agents_payload_cache": None,
     }
@@ -275,7 +570,7 @@ if not backend_ok:
 # LEGEND PICKER DIALOG
 # ============================================================================
 
-@st.dialog(" ", width="large", on_dismiss="rerun")
+@st.dialog(" ", width="large", on_dismiss="ignore")
 def legend_picker_dialog() -> None:
     render_section_title("☷", "Council Draft Board")
     st.caption("Select which voices enter the chamber.")
@@ -359,16 +654,22 @@ with st.sidebar:
         with st.container(key="sidebar_entropy"):
             render_sidebar_heading("Logic Entropy", extra_class="exhum-temperature-controller")
             st.markdown(
-                "<span class='exhum-temperature-caption'>Adjust between rigid logic & creative unpredictability.</span>",
+                "<span class='exhum-temperature-caption'>Adjust between rigid logic and creative unpredictability.</span>",
                 unsafe_allow_html=True,
             )
             render_entropy_slider_control()
 
         render_sidebar_heading("Commands")
 
-        start = st.button("▶️ Start Debate", key="start_button", use_container_width=True)
+        has_existing_debate = bool(
+            st.session_state.discussion_started or st.session_state.messages
+        )
+        start_button_label = "▶️ Advance Debate" if has_existing_debate else "▶️ Start Debate"
+        start = st.button(start_button_label, key="start_button", use_container_width=True)
         stop = st.button("⏸️ Halt Debate", key="pause_button", use_container_width=True)
+        stop_feedback = st.empty()
         clear = st.button("🧹 Wipe Debate", key="clear_button", use_container_width=True)
+        clear_feedback = st.empty()
 
         if start:
             if not st.session_state.topic_input.strip():
@@ -383,19 +684,21 @@ with st.sidebar:
                 st.session_state.round_temperature = float(st.session_state.target_entropy)
                 st.session_state.discussion_active = True
                 st.session_state.discussion_started = True
-                st.session_state.speaker_progress = {aid: 0.0 for aid in st.session_state.selected_agents}
-                st.session_state.current_agent_index = 0
-                st.session_state.current_turn_number = int(st.session_state.turn_count) + 1
-                st.session_state.thinking_message_id = ""
-                st.session_state.thinking_visible = False
-                st.rerun()
+                if not st.session_state.speaker_progress:
+                    st.session_state.speaker_progress = {aid: 0.0 for aid in st.session_state.selected_agents}
+
+                round_finished = int(st.session_state.current_agent_index) >= len(st.session_state.selected_agents)
+                fresh_start = not st.session_state.messages and int(st.session_state.turn_count) == 0
+
+                if fresh_start or round_finished:
+                    st.session_state.current_agent_index = 0
+                    st.session_state.current_turn_number = int(st.session_state.turn_count) + 1
+                    st.session_state.thinking_message_id = ""
+                    st.session_state.thinking_visible = False
 
         if stop:
             st.session_state.discussion_active = False
-            st.session_state.current_agent_index = 0
-            st.session_state.thinking_message_id = ""
-            st.session_state.thinking_visible = False
-            st.info("Round paused.")
+            stop_feedback.info("Round paused.")
 
         if clear:
             clear_ok = asyncio.run(api.clear_session(st.session_state.session_id))
@@ -414,9 +717,9 @@ with st.sidebar:
             })
             st.session_state.topic_edit_buffer = st.session_state.topic_input
             if clear_ok:
-                st.success("Debate cleared.")
+                clear_feedback.success("Debate cleared.")
             else:
-                st.warning("Debate cleared locally, but backend cleanup failed.")
+                clear_feedback.warning("Debate cleared locally, but backend cleanup failed.")
 
         if st.button("📄 Download Transcript", use_container_width=True):
             if not st.session_state.messages:
@@ -455,14 +758,12 @@ with st.sidebar:
                 "thinking_visible": False,
             })
             st.session_state.topic_edit_buffer = st.session_state.topic_input
-            st.rerun()
 
 
 # ============================================================================
 # MAIN AREA
 # ============================================================================
 
-col_chat, col_panel = st.columns([3, 1])
 agent_counts: Dict[str, int] = {}
 for msg in st.session_state.messages:
     aid = msg.get("agent_id", "Unknown")
@@ -477,178 +778,17 @@ elif agent_counts:
 else:
     display_speakers = []
 
+col_chat, col_panel = st.columns([3.2, 1], gap="large")
 with col_chat:
-    topic_locked = st.session_state.discussion_started or len(st.session_state.messages) > 0
-    st.markdown("## 💬 Discussion")
-
-    if not st.session_state.topic_edit_mode:
-        st.session_state.topic_edit_buffer = st.session_state.topic_input
-        safe_topic = st.session_state.topic_input.replace("<", "&lt;").replace(">", "&gt;")
-        hero_col, edit_col = st.columns([18, 1])
-        with hero_col:
-            st.markdown(
-                f"<div class='exhum-topic-hero'>"
-                f"<p class='exhum-topic-title'>{safe_topic}</p>"
-                "</div>",
-                unsafe_allow_html=True,
-            )
-        with edit_col:
-            if topic_locked:
-                st.markdown(
-                    """
-                    <style>
-                    div[class*="st-key-topic_edit_toggle"] button {
-                        background: #e5e7eb !important;
-                        color: #6b7280 !important;
-                        box-shadow: none !important;
-                        transform: none !important;
-                        cursor: not-allowed !important;
-                    }
-                    div[class*="st-key-topic_edit_toggle"] button:hover {
-                        background: #e5e7eb !important;
-                        color: #6b7280 !important;
-                        box-shadow: none !important;
-                        transform: none !important;
-                    }
-                    </style>
-                    """,
-                    unsafe_allow_html=True,
-                )
-            st.button(
-                "✏️",
-                key="topic_edit_toggle",
-                help=TOPIC_LOCKED_MESSAGE if topic_locked else "Edit discussion theme",
-                on_click=handle_topic_edit_button_click,
-                use_container_width=True,
-            )
-    else:
-        st.text_input(
-            "Discussion Topic",
-            key="topic_edit_buffer",
-            on_change=save_topic_from_inline_editor,
-            help="Press Enter to save immediately.",
-        )
-        c_save, c_cancel = st.columns(2)
-        with c_save:
-            if st.button("💾 Save Topic", key="save_topic_btn", use_container_width=True):
-                save_topic_from_inline_editor()
-        with c_cancel:
-            st.button("↩️ Cancel", key="cancel_topic_btn", use_container_width=True,
-                      on_click=_cancel_topic_edit)
-
-    status_live = st.session_state.discussion_started or len(st.session_state.messages) > 0
-    status_class = "exhum-badge-live" if status_live else "exhum-badge-draft"
-    status_text = "Live" if status_live else "Dormant"
-    st.markdown(
-        f"<span class='exhum-badge {status_class}'>📡 Status: {status_text}</span>",
-        unsafe_allow_html=True,
+    render_discussion_panel(
+        available_agents=available_agents,
+        legend_map=legend_map,
+        display_speakers=display_speakers,
+        agent_counts=agent_counts,
+        speaker_progress_bars=speaker_progress_bars,
     )
-
-    if display_speakers:
-        for aid in display_speakers:
-            stored_name = next(
-                (m.get("display_name") for m in st.session_state.messages
-                 if m.get("agent_id") == aid and m.get("display_name")),
-                None,
-            )
-            name = available_agents.get(aid) or stored_name or aid
-            idx = get_style_index(aid)
-            accent = ACCENT_COLORS[idx]
-            avatar_url = get_avatar_url(aid, name)
-            archetype = legend_map.get(aid, {}).get("archetype", "")
-            speaker_progress_bars[aid] = {
-                "name": name,
-                "avatar_url": avatar_url,
-                "accent": accent,
-                "turns": agent_counts.get(aid, 0),
-                "archetype": archetype,
-            }
-
-    with st.container(border=False):
-        if not st.session_state.messages:
-            st.markdown(
-                "<div class='exhum-empty'><h3>🎬 Ready to start</h3>"
-                "<p>Use ✨ Add Legend and press ▶️ Start</p></div>",
-                unsafe_allow_html=True,
-            )
-        else:
-            for message_index, msg in enumerate(st.session_state.messages):
-                aid = msg.get("agent_id", "")
-                name = available_agents.get(aid) or msg.get("display_name") or aid
-                idx = get_style_index(aid)
-                accent = ACCENT_COLORS[idx]
-                avatar_url = get_avatar_url(aid, name)
-                ts = msg.get("created_at", "")
-                if ts and "T" in ts:
-                    ts = ts.split("T")[1][:5]
-
-                turn = msg.get("turn_number", "-")
-                raw_body = str(msg.get("message", ""))
-                is_thinking = bool(msg.get("is_thinking"))
-                message_key = f"{aid}-{turn}-{message_index}"
-                is_expanded = message_key in st.session_state.expanded_message_keys
-                body = _render_message_body(raw_body, is_expanded)
-                progress = float(st.session_state.speaker_progress.get(aid, 0.0))
-                thinking_text = "<span class='exhum-thinking-pulse'>Agent is formulating logic...</span>"
-                thinking_progress_html = ""
-                if is_thinking:
-                    thinking_progress_html = (
-                        "<div class='exhum-bubble-progress-track exhum-bubble-progress-track-inline'>"
-                        f"<div class='exhum-bubble-progress-fill' style='width:{max(8.0, progress * 100.0):.1f}%'></div>"
-                        "</div>"
-                    )
-
-                with st.container():
-                    st.markdown(
-                        f"<div class='exhum-bubble exhum-bubble-{idx}'>"
-                        f"{thinking_progress_html}"
-                        f"<div class='exhum-header exhum-bubble-header-static'>"
-                        f"<div class='exhum-avatar' style='background:{accent}22; color:{accent};'>"
-                        f"<img class='exhum-avatar-img' src='{avatar_url}' alt='{name}' />"
-                        "</div>"
-                        "<div class='exhum-bubble-header-main'>"
-                        f"<span class='exhum-name' style='color:{accent};'>{name}</span>"
-                        f"<span class='exhum-meta'>Turn {turn} - {ts}</span>"
-                        "</div>"
-                        "</div>"
-                        f"<p>{thinking_text if is_thinking else body}</p>"
-                        "</div>",
-                        unsafe_allow_html=True,
-                    )
-                    if (not is_thinking) and len(raw_body) > 280:
-                        st.markdown(
-                            f"<span class='exhum-read-more-anchor exhum-read-more-color-{idx}'></span>",
-                            unsafe_allow_html=True,
-                        )
-                        st.button(
-                            "Read less" if is_expanded else "Read more",
-                            key=f"toggle_message_{message_key}",
-                            on_click=_toggle_message_expansion,
-                            args=(message_key,),
-                        )
-
 with col_panel:
-    with st.container(key="telemetry_panel"):
-        st.markdown(
-            "<div class='exhum-telemetry-hero'>"
-            "<span class='exhum-telemetry-kicker'>Runtime Monitor</span>"
-            "<div class='exhum-telemetry-title'>Telemetry</div>"
-            "<p class='exhum-telemetry-subtitle'>Live model health, context pressure, spend, and speaking balance.</p>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-        st.toggle(
-            "Live backend metrics",
-            key="telemetry_live",
-            help="Enable live telemetry and service checks. Leaving this off improves page load and rerun speed.",
-        )
-        render_telemetry_panel(
-            messages=st.session_state.messages,
-            selected_agents=st.session_state.selected_agents,
-            available_agents=available_agents,
-            key_prefix="exhum_telemetry",
-            fetch_live=bool(st.session_state.telemetry_live),
-        )
+    render_telemetry_section(available_agents)
 
 
 # ============================================================================
@@ -668,76 +808,81 @@ if st.session_state.discussion_active and st.session_state.selected_agents:
         st.session_state.current_turn_number = int(st.session_state.turn_count) + 1
         st.session_state.thinking_message_id = ""
         st.session_state.thinking_visible = False
-        st.rerun()
+    else:
+        current_agent_id = st.session_state.selected_agents[current_index]
 
-    current_agent_id = st.session_state.selected_agents[current_index]
-
-    if not st.session_state.thinking_visible:
-        display_name = available_agents.get(current_agent_id) or current_agent_id
-        st.session_state.speaker_progress[current_agent_id] = 0.25
-        st.session_state.messages.append({
-            "id": f"thinking-{current_agent_id}-{st.session_state.current_turn_number}",
-            "agent_id": current_agent_id,
-            "display_name": display_name,
-            "message": "",
-            "turn_number": st.session_state.current_turn_number,
-            "created_at": datetime.utcnow().isoformat(),
-            "is_thinking": True,
-        })
-        st.session_state.thinking_message_id = f"thinking-{current_agent_id}-{st.session_state.current_turn_number}"
-        st.session_state.thinking_visible = True
-        _update_card(current_agent_id, 0.25, "thinking...")
-        st.rerun()
-
-    async def run_current_turn() -> None:
-        topic = st.session_state.topic_input
-        temperature = float(st.session_state.round_temperature)
-        turn_started_at = time.perf_counter()
-        response = await api.process_agent_turn(
-            session_id=st.session_state.session_id,
-            topic=topic,
-            agent_id=current_agent_id,
-            temperature=temperature,
-            turn_number=int(st.session_state.current_turn_number),
-        )
-        st.session_state.last_inference_latency_ms = (time.perf_counter() - turn_started_at) * 1000.0
-
-        target_id = st.session_state.thinking_message_id
-        target_message = next(
-            (msg for msg in reversed(st.session_state.messages) if msg.get("id") == target_id),
-            None,
-        )
-
-        if response and target_message is not None:
-            target_message.update({
-                "agent_id": response.get("agent_id"),
-                "display_name": response.get("display_name", ""),
-                "message": response.get("message"),
-                "turn_number": response.get("turn_number"),
-                "created_at": response.get("created_at", datetime.utcnow().isoformat()),
-                "is_thinking": False,
+        if not st.session_state.thinking_visible:
+            display_name = available_agents.get(current_agent_id) or current_agent_id
+            st.session_state.speaker_progress[current_agent_id] = 0.25
+            st.session_state.messages.append({
+                "id": f"thinking-{current_agent_id}-{st.session_state.current_turn_number}",
+                "agent_id": current_agent_id,
+                "display_name": display_name,
+                "message": "",
+                "turn_number": st.session_state.current_turn_number,
+                "created_at": datetime.utcnow().isoformat(),
+                "is_thinking": True,
             })
-            st.session_state.turn_count += 1
-            update_debate_entropy()
-            st.session_state.speaker_progress[current_agent_id] = 1.0
-            _update_card(current_agent_id, 1.0, "done", extra_turns=1)
-        else:
-            if target_message is not None:
+            st.session_state.thinking_message_id = f"thinking-{current_agent_id}-{st.session_state.current_turn_number}"
+            st.session_state.thinking_visible = True
+            _update_card(current_agent_id, 0.25, "thinking...")
+            st.rerun()
+
+        async def run_current_turn() -> None:
+            topic = st.session_state.topic_input
+            temperature = float(st.session_state.round_temperature)
+            turn_started_at = time.perf_counter()
+            response = await api.process_agent_turn(
+                session_id=st.session_state.session_id,
+                topic=topic,
+                agent_id=current_agent_id,
+                temperature=temperature,
+                turn_number=int(st.session_state.current_turn_number),
+            )
+            st.session_state.last_inference_latency_ms = (time.perf_counter() - turn_started_at) * 1000.0
+
+            target_id = st.session_state.thinking_message_id
+            target_message = next(
+                (msg for msg in reversed(st.session_state.messages) if msg.get("id") == target_id),
+                None,
+            )
+
+            if response and target_message is not None:
+                telemetry = response.get("telemetry") if isinstance(response, dict) else None
+                execution_metrics = response.get("execution_metrics") if isinstance(response, dict) else None
                 target_message.update({
-                    "message": "Agent failed to produce a response.",
+                    "agent_id": response.get("agent_id"),
+                    "display_name": response.get("display_name", ""),
+                    "message": response.get("message"),
+                    "turn_number": response.get("turn_number"),
+                    "created_at": response.get("created_at", datetime.utcnow().isoformat()),
                     "is_thinking": False,
-                    "created_at": datetime.utcnow().isoformat(),
+                    "execution_metrics": execution_metrics if isinstance(execution_metrics, dict) else None,
                 })
-            st.session_state.speaker_progress[current_agent_id] = 0.0
-            _update_card(current_agent_id, 0.0, "failed")
+                st.session_state.turn_count += 1
+                if isinstance(telemetry, dict):
+                    entropy_value = telemetry.get("entropy")
+                    if isinstance(entropy_value, (int, float)):
+                        st.session_state.debate_entropy = max(0.0, min(1.0, float(entropy_value)))
+                st.session_state.speaker_progress[current_agent_id] = 1.0
+                _update_card(current_agent_id, 1.0, "done", extra_turns=1)
+            else:
+                if target_message is not None:
+                    target_message.update({
+                        "message": "Agent failed to produce a response.",
+                        "is_thinking": False,
+                        "created_at": datetime.utcnow().isoformat(),
+                    })
+                st.session_state.speaker_progress[current_agent_id] = 0.0
+                _update_card(current_agent_id, 0.0, "failed")
 
-        st.session_state.current_agent_index += 1
-        st.session_state.current_turn_number = int(st.session_state.turn_count) + 1
-        st.session_state.thinking_message_id = ""
-        st.session_state.thinking_visible = False
+            st.session_state.current_agent_index += 1
+            st.session_state.current_turn_number = int(st.session_state.turn_count) + 1
+            st.session_state.thinking_message_id = ""
+            st.session_state.thinking_visible = False
 
-    asyncio.run(run_current_turn())
-    st.rerun()
+        asyncio.run(run_current_turn())
+        st.rerun()
 
 
 # ============================================================================

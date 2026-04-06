@@ -119,6 +119,7 @@ class ProcessTurnRequest(BaseModel):
     session_id: UUID = Field(..., description="Unique session identifier")
     topic: str = Field(..., min_length=1, max_length=255, description="Discussion topic")
     agent_id: str = Field(..., description="Agent to process turn for")
+    temperature: Optional[float] = Field(default=None, ge=0.0, le=1.5, description="Optional runtime temperature override from the UI")
     turn_number: Optional[int] = Field(default=None, ge=1, description="Turn number if already known")
 
 
@@ -129,6 +130,8 @@ class ProcessTurnResponse(BaseModel):
     message: str
     turn_number: int
     created_at: datetime
+    telemetry: "TelemetryData"
+    execution_metrics: "ExecutionMetrics"
 
 
 class GenerateRequest(BaseModel):
@@ -150,6 +153,8 @@ class ExecutionMetrics(BaseModel):
     completion_tokens: Optional[int] = Field(None, description="Completion tokens generated")
     total_tokens: Optional[int] = Field(None, description="Total tokens consumed")
     tokens_per_second: Optional[float] = Field(None, description="Completion throughput in tokens per second")
+    queue_time_ms: Optional[int] = Field(None, description="Provider-reported queue time in milliseconds, if available")
+    prompt_time_ms: Optional[int] = Field(None, description="Provider-reported prompt processing time in milliseconds, if available")
     ttft_ms: Optional[int] = Field(None, description="Time to first token in milliseconds, if available")
     network_rtt_ms: Optional[int] = Field(None, description="Observed network round-trip for the inference request")
     provider: str = Field(default="llm", description="Current inference provider label")
@@ -367,6 +372,22 @@ def _extract_ttft_ms(headers: httpx.Headers) -> Optional[int]:
     return None
 
 
+def _estimate_ttft_ms(
+    headers: httpx.Headers,
+    queue_time_ms: Optional[int],
+    prompt_time_ms: Optional[int],
+) -> Optional[int]:
+    provider_ttft_ms = _extract_ttft_ms(headers)
+    if provider_ttft_ms is not None:
+        return provider_ttft_ms
+
+    timing_parts = [value for value in (queue_time_ms, prompt_time_ms) if isinstance(value, int)]
+    if timing_parts:
+        return sum(timing_parts)
+
+    return None
+
+
 def _extract_execution_metrics(
     data: Dict[str, Any],
     headers: httpx.Headers,
@@ -378,11 +399,16 @@ def _extract_execution_metrics(
     prompt_tokens = _safe_int(usage.get("prompt_tokens"))
     completion_tokens = _safe_int(usage.get("completion_tokens"))
     total_tokens = _safe_int(usage.get("total_tokens"))
+    queue_time_s = _safe_float(usage.get("queue_time"))
+    prompt_time_s = _safe_float(usage.get("prompt_time"))
 
     generation_duration_s = (
         _safe_float(usage.get("total_time"))
         or _safe_float(usage.get("completion_time"))
     )
+    queue_time_ms = int(queue_time_s * 1000) if queue_time_s is not None else None
+    prompt_time_ms = int(prompt_time_s * 1000) if prompt_time_s is not None else None
+    ttft_ms = _estimate_ttft_ms(headers, queue_time_ms, prompt_time_ms)
     generation_duration_ms = (
         int(generation_duration_s * 1000) if generation_duration_s is not None else None
     )
@@ -397,7 +423,9 @@ def _extract_execution_metrics(
         completion_tokens=completion_tokens,
         total_tokens=total_tokens,
         tokens_per_second=tokens_per_second,
-        ttft_ms=_extract_ttft_ms(headers),
+        queue_time_ms=queue_time_ms,
+        prompt_time_ms=prompt_time_ms,
+        ttft_ms=ttft_ms,
         network_rtt_ms=network_rtt_ms,
         provider="llm",
         updated_at=datetime.now(timezone.utc),
@@ -609,13 +637,22 @@ def build_context_prompt(topic: str, context_messages: List[Dict[str, Any]], age
     )
 
 
-async def call_llm_api(prompt: str, agent_config: AgentConfig) -> tuple[str, ExecutionMetrics]:
+async def call_llm_api(
+    prompt: str,
+    agent_config: AgentConfig,
+    temperature_override: Optional[float] = None,
+) -> tuple[str, ExecutionMetrics]:
     api_url = f"{LLM_API_BASE_URL}/chat/completions"
     headers = {"Authorization": f"Bearer {LLM_API_KEY}"}
+    effective_temperature = (
+        float(temperature_override)
+        if isinstance(temperature_override, (int, float))
+        else float(agent_config.temperature)
+    )
     payload = {
         "model": LLM_MODEL_ID,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": agent_config.temperature,
+        "temperature": effective_temperature,
         "max_tokens": agent_config.max_tokens,
         "top_p": 0.95,
         "stream": False,
@@ -858,10 +895,24 @@ async def process_turn(request: ProcessTurnRequest) -> ProcessTurnResponse:
     agent_config = await fetch_agent_config(request.agent_id)
     context_messages = await fetch_context_messages(request.session_id, limit=5)
     turn_number = request.turn_number or (len(context_messages) + 1)
+    previous_response = ""
+    if context_messages:
+        previous_response = str(context_messages[-1].get("message", "") or "").strip()
 
     prompt = build_context_prompt(request.topic, context_messages, agent_config)
-    generated_message, execution_metrics = await call_llm_api(prompt, agent_config)
+    generated_message, execution_metrics = await call_llm_api(
+        prompt,
+        agent_config,
+        temperature_override=request.temperature,
+    )
     save_latest_execution_metrics(execution_metrics)
+    latency_ms = execution_metrics.generation_duration_ms or execution_metrics.network_rtt_ms or 0
+    entropy = calculate_jaccard_entropy(generated_message, previous_response) if previous_response else 0.0
+    telemetry = TelemetryData(
+        entropy=entropy,
+        latency_ms=int(latency_ms),
+        word_count=len(generated_message.split()),
+    )
 
     stored_message = await save_message_to_storage(
         session_id=request.session_id,
@@ -879,6 +930,8 @@ async def process_turn(request: ProcessTurnRequest) -> ProcessTurnResponse:
         message=generated_message,
         turn_number=turn_number,
         created_at=datetime.now(timezone.utc),
+        telemetry=telemetry,
+        execution_metrics=execution_metrics,
     )
 
 

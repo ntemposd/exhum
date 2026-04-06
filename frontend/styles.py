@@ -87,6 +87,14 @@ def apply_styles() -> None:
             height: 100vh !important;
             z-index: 10020 !important;
             box-shadow: 8px 0 24px rgba(0, 0, 0, 0.18) !important;
+            transform: translateX(0) !important;
+            transition: transform 160ms ease, box-shadow 160ms ease !important;
+        }
+
+        section[data-testid="stSidebar"][aria-expanded="false"] {
+            transform: translateX(calc(-1 * min(22rem, 86vw))) !important;
+            box-shadow: none !important;
+            border-right: none !important;
         }
 
         section[data-testid="stSidebar"]::before {
@@ -100,6 +108,10 @@ def apply_styles() -> None:
             border-right: 2px solid #000000;
             z-index: 10019;
             pointer-events: none;
+        }
+
+        section[data-testid="stSidebar"][aria-expanded="false"]::before {
+            display: none !important;
         }
 
         section[data-testid="stSidebar"] > div {

@@ -12,15 +12,19 @@ def apply_styles() -> None:
     <style>
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
 
+    :root {
+        --exhum-native-header-height: 3.75rem;
+        --exhum-main-top-gap: 3.25rem;
+    }
+
     .stApp {
         background: #f3f4f6;
         color: #111111;
     }
 
-    .stApp [data-testid="stAppViewContainer"] .main .block-container {
-            padding-bottom: 8px;
-            padding-left: 1rem;
-            padding-right: 1rem;
+    .stApp [data-testid="stAppViewContainer"] .main .block-container,
+    .stApp .stMainBlockContainer.block-container {
+            padding-top: var(--exhum-main-top-gap) !important;
     }
 
     [data-testid="stBottomBlockContainer"] {
@@ -103,7 +107,7 @@ def apply_styles() -> None:
             top: 0;
             left: 0;
             width: min(22rem, 86vw);
-            height: 3rem;
+            height: var(--exhum-native-header-height);
             background: #ffffff;
             border-right: 2px solid #000000;
             z-index: 10019;
@@ -341,6 +345,30 @@ def apply_styles() -> None:
         margin: 0 !important;
         opacity: 0 !important;
         pointer-events: none !important;
+    }
+
+    .st-key-discussion_panel > [data-testid="stVerticalBlock"] {
+        gap: 0 !important;
+    }
+
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:has(.st-key-discussion_panel),
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:has(.st-key-discussion_panel) > div,
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:has(.st-key-discussion_panel) [data-testid="stVerticalBlock"]:has(> .st-key-discussion_panel),
+    [data-testid="stHorizontalBlock"] > [data-testid="column"]:has(.st-key-discussion_panel) [data-testid="stVerticalBlock"]:has(.exhum-telemetry-hero) {
+        gap: 0 !important;
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+
+    .st-key-discussion_panel [data-testid="stVerticalBlock"]:has(.exhum-telemetry-hero) {
+        gap: 0 !important;
+    }
+
+    .st-key-discussion_panel [data-testid="element-container"]:has(.exhum-telemetry-hero),
+    .st-key-discussion_panel [data-testid="element-container"]:has(.exhum-discussion-status-row),
+    .st-key-discussion_panel [data-testid="element-container"]:has(.st-key-discussion_topic_shell) {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
     }
 
     [data-testid="stHorizontalBlock"] > [data-testid="column"]:has(.st-key-telemetry_panel) {
@@ -1103,8 +1131,8 @@ def apply_styles() -> None:
     }
 
     .exhum-telemetry-hero {
-        margin: 0 0 14px 0;
-        padding: 0 0 12px 0;
+        margin: 0 0 12px 0;
+        padding: 0 0 10px 0;
         border-bottom: 2px solid #111111;
     }
 
@@ -1529,6 +1557,20 @@ def apply_styles() -> None:
         text-align: left !important;
         line-height: 1.05 !important;
         white-space: nowrap !important;
+        word-break: keep-all !important;
+        overflow-wrap: normal !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] th *,
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] td * {
+        white-space: nowrap !important;
+        word-break: keep-all !important;
+        overflow-wrap: normal !important;
+    }
+
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] thead tr > *:last-child,
+    .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] tbody tr > *:last-child {
+        min-width: 5.75rem !important;
     }
 
     .st-key-exhum_telemetry_system_status_card [data-testid="stTable"] td,
@@ -1667,7 +1709,7 @@ def apply_styles() -> None:
 
     .st-key-exhum_telemetry_context_shell [data-testid="stTable"] th {
         background: transparent !important;
-        padding: 0 0.15rem 0.35rem 0.15rem !important;
+        padding: 0.25rem 0.45rem 0.55rem 0.45rem !important;
         border-bottom: 1px solid #111111 !important;
         font-size: 0.58rem !important;
         line-height: 1 !important;
@@ -1682,7 +1724,7 @@ def apply_styles() -> None:
 
     .st-key-exhum_telemetry_context_shell [data-testid="stTable"] td {
         background: transparent !important;
-        padding: 0.42rem 0.15rem !important;
+        padding: 0.58rem 0.45rem !important;
         border-bottom: 1px solid #9ca3af !important;
         font-size: 0.68rem !important;
         line-height: 1.15 !important;
@@ -1693,7 +1735,7 @@ def apply_styles() -> None:
 
     .st-key-exhum_telemetry_context_shell [data-testid="stTable"] tbody tr:last-child td {
         border-bottom: none !important;
-        padding-bottom: 0 !important;
+        padding-bottom: 0.55rem !important;
     }
 
     .st-key-exhum_telemetry_context_shell [data-testid="stTable"] th:nth-child(2),
@@ -2019,10 +2061,11 @@ def apply_styles() -> None:
     }
 
     @media (max-width: 900px) {
-        .main .block-container {
-            padding-top: 0.8rem;
-            padding-left: 0.6rem;
-            padding-right: 0.6rem;
+        .main .block-container,
+        .stMainBlockContainer.block-container {
+            padding-top: calc(var(--exhum-main-top-gap) * 0.5) !important;
+            padding-left: 0.6rem !important;
+            padding-right: 0.6rem !important;
         }
 
         .exhum-card {

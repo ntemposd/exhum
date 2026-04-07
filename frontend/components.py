@@ -24,7 +24,7 @@ FRONTEND_DIR = Path(__file__).resolve().parent
 LEGENDS_REGISTRY_PATH = FRONTEND_DIR / "agents_registry.json"
 LOGO_PATH = BASE_DIR / "static" / "logo.png"
 ACCENT_COLORS = ["#ff6b00", "#1f2937", "#0ea5a4", "#2563eb", "#16a34a"]
-SESSION_COST_HELPER_TEXT = "Spend estimate based on generated token volume."
+SESSION_COST_HELPER_TEXT = "Spend estimate based on token volume."
 
 
 def build_hidden_index_table(rows: List[Dict[str, str]]) -> pd.DataFrame:
@@ -561,7 +561,7 @@ def render_telemetry_panel(
                     "<div class='exhum-telemetry-entropy-track'>"
                     f"<div class='exhum-telemetry-entropy-fill' style='width:{observed_ratio * 100:.1f}%'></div>"
                     "</div>"
-                    "<div class='exhum-telemetry-entropy-caption'>Diversity calculated as pairwise Jaccard entropy between a response and the immediately preceding one.</div>"
+                    "<div class='exhum-telemetry-entropy-caption'>Diversity calculated as average pairwise Jaccard entropy between a response and the immediately preceding one.</div>"
                     "</div>"
                     "</div>",
                     unsafe_allow_html=True,

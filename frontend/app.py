@@ -48,9 +48,11 @@ st.markdown(
     """
     <style>
     @media (max-width: 1024px) {
-        .stApp [data-testid="stAppViewContainer"] .main .block-container {
-            padding-left: 0.75rem;
-            padding-right: 0.75rem;
+        .stApp [data-testid="stAppViewContainer"] .main .block-container,
+        .stApp .stMainBlockContainer.block-container {
+            padding-top: calc(var(--exhum-main-top-gap) * 0.5) !important;
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
         }
 
         div[data-testid="stHorizontalBlock"] {
@@ -147,6 +149,59 @@ def ensure_sidebar_open_on_load() -> None:
 
 
 ensure_sidebar_open_on_load()
+
+
+def close_sidebar_after_mobile_start() -> None:
+        if not st.session_state.get("close_sidebar_after_start"):
+                return
+
+        components.html(
+                """
+                <script>
+                (function () {
+                    const parentWindow = window.parent;
+                    const parentDoc = parentWindow.document;
+
+                    if ((parentWindow.innerWidth || 0) > 1024) {
+                        return;
+                    }
+
+                    function closeSidebarIfOpen() {
+                        const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
+                        if (!sidebar || sidebar.getAttribute('aria-expanded') === 'false') {
+                            return true;
+                        }
+
+                        const collapseControl =
+                            parentDoc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
+                            parentDoc.querySelector('[data-testid="stSidebarCollapseButton"]');
+
+                        if (!collapseControl) {
+                            return false;
+                        }
+
+                        collapseControl.click();
+                        return true;
+                    }
+
+                    if (closeSidebarIfOpen()) {
+                        return;
+                    }
+
+                    let attempts = 0;
+                    const interval = parentWindow.setInterval(function () {
+                        attempts += 1;
+                        if (closeSidebarIfOpen() || attempts > 20) {
+                            parentWindow.clearInterval(interval);
+                        }
+                    }, 120);
+                })();
+                </script>
+                """,
+                height=0,
+                width=0,
+        )
+        st.session_state.close_sidebar_after_start = False
 
 
 def render_section_title(icon: str, label: str, extra_class: str = "") -> None:
@@ -250,7 +305,7 @@ def render_discussion_panel(
                 helper_text = (
                     "Discussion theme is locked after the debate starts."
                     if topic_locked
-                    else "Click the discussion theme box above to edit it."
+                    else "Press the debate topic box above to edit."
                 )
                 st.markdown(
                     f"<div class='exhum-discussion-helper'>{helper_text}</div>",
@@ -484,6 +539,7 @@ def init_session_state() -> None:
         "thinking_visible": False,
         "agents_backend_url": "",
         "agents_payload_cache": None,
+        "close_sidebar_after_start": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -684,6 +740,7 @@ with st.sidebar:
                 st.session_state.round_temperature = float(st.session_state.target_entropy)
                 st.session_state.discussion_active = True
                 st.session_state.discussion_started = True
+                st.session_state.close_sidebar_after_start = True
                 if not st.session_state.speaker_progress:
                     st.session_state.speaker_progress = {aid: 0.0 for aid in st.session_state.selected_agents}
 
@@ -789,6 +846,8 @@ with col_chat:
     )
 with col_panel:
     render_telemetry_section(available_agents)
+
+close_sidebar_after_mobile_start()
 
 
 # ============================================================================

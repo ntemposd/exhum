@@ -788,9 +788,9 @@ def apply_styles() -> None:
     }
 
     .exhum-legend-avatar {
-        width: 54px;
-        height: 54px;
-        border: 2px solid #000000;
+        width: 64px;
+        height: 64px;
+        border: 1px solid #000000;
         border-radius: 0;
         object-fit: cover;
         box-shadow: 2px 2px 0 0 #000000;
@@ -846,7 +846,7 @@ def apply_styles() -> None:
 
     .exhum-thinking-pulse {
         display: inline-block;
-        font-weight: 700;
+        font-weight: 400;
         animation: exhum-thinking-pulse 1s ease-in-out infinite;
     }
 
@@ -954,10 +954,10 @@ def apply_styles() -> None:
     }
 
     .exhum-avatar {
-        width: 32px;
-        height: 32px;
+        width: 64px;
+        height: 64px;
         border-radius: 0;
-        border: 2px solid #000000;
+        border: 1px solid #000000;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2108,8 +2108,8 @@ def apply_styles() -> None:
         }
 
         .exhum-avatar {
-            width: 28px;
-            height: 28px;
+            width: 64px;
+            height: 64px;
         }
 
         .exhum-legend-avatar {

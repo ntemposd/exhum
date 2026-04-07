@@ -25,6 +25,8 @@ LEGENDS_REGISTRY_PATH = FRONTEND_DIR / "agents_registry.json"
 LOGO_PATH = BASE_DIR / "static" / "logo.png"
 ACCENT_COLORS = ["#ff6b00", "#1f2937", "#0ea5a4", "#2563eb", "#16a34a"]
 SESSION_COST_HELPER_TEXT = "Spend estimate based on token volume."
+LLAMA_31_8B_INSTANT_INPUT_USD_PER_MILLION = 0.05
+LLAMA_31_8B_INSTANT_OUTPUT_USD_PER_MILLION = 0.08
 
 
 def build_hidden_index_table(rows: List[Dict[str, str]]) -> pd.DataFrame:
@@ -264,7 +266,22 @@ def build_telemetry_snapshot(
         if request_rows
         else "No request metrics yet."
     )
-    burn_usd = (aggregate_total_tokens / 1000.0) * 0.0002
+    input_cost_per_token = LLAMA_31_8B_INSTANT_INPUT_USD_PER_MILLION / 1_000_000.0
+    output_cost_per_token = LLAMA_31_8B_INSTANT_OUTPUT_USD_PER_MILLION / 1_000_000.0
+
+    if prompt_tokens or completion_tokens:
+        burn_usd = (
+            prompt_tokens * input_cost_per_token
+            + completion_tokens * output_cost_per_token
+        )
+    else:
+        # When prompt/completion telemetry is unavailable, use a blended rate across total estimated tokens.
+        blended_cost_per_token = (
+            (LLAMA_31_8B_INSTANT_INPUT_USD_PER_MILLION + LLAMA_31_8B_INSTANT_OUTPUT_USD_PER_MILLION)
+            / 2.0
+            / 1_000_000.0
+        )
+        burn_usd = aggregate_total_tokens * blended_cost_per_token
 
     generation_samples = [
         int(item.get("generation_duration_ms"))

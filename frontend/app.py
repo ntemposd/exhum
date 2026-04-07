@@ -108,45 +108,94 @@ def ensure_sidebar_open_on_load() -> None:
         (function () {
           const parentWindow = window.parent;
           const parentDoc = parentWindow.document;
+          const MAX_ATTEMPTS = 80;
+          const RETRY_MS = 150;
+
+          function findOpenControl() {
+            return (
+              parentDoc.querySelector('[data-testid="collapsedControl"] button') ||
+              parentDoc.querySelector('[data-testid="collapsedControl"]') ||
+              parentDoc.querySelector('button[aria-label*="Open sidebar"]') ||
+              parentDoc.querySelector('button[title*="Open sidebar"]')
+            );
+          }
+
+          function findCloseControl() {
+            return (
+              parentDoc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
+              parentDoc.querySelector('[data-testid="stSidebarCollapseButton"]') ||
+              parentDoc.querySelector('button[aria-label*="Close sidebar"]') ||
+              parentDoc.querySelector('button[title*="Close sidebar"]')
+            );
+          }
+
+          function dispatchClick(element) {
+            if (!element) return false;
+            ['pointerdown', 'mousedown', 'mouseup', 'click'].forEach((eventName) => {
+              element.dispatchEvent(new MouseEvent(eventName, {
+                bubbles: true,
+                cancelable: true,
+                view: parentWindow,
+              }));
+            });
+            return true;
+          }
+
+          function isSidebarOpen() {
+            const closeControl = findCloseControl();
+            if (closeControl) return true;
+
+            const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
+            if (!sidebar) return false;
+
+            const expandedAttr = sidebar.getAttribute('aria-expanded');
+            if (expandedAttr === 'true') return true;
+            if (expandedAttr === 'false') return false;
+
+            const computedStyle = parentWindow.getComputedStyle(sidebar);
+            return computedStyle.transform === 'none' || !computedStyle.transform.includes('-');
+          }
 
           function openSidebarIfNeeded() {
-                        if (parentWindow.__exhumSidebarAutoOpened) {
-                            return true;
-                        }
-
-                        const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
-            const collapsedControl =
-              parentDoc.querySelector('[data-testid="collapsedControl"] button') ||
-              parentDoc.querySelector('[data-testid="collapsedControl"]');
-
-                        if (sidebar && sidebar.getAttribute('aria-expanded') !== 'false') {
-                            parentWindow.__exhumSidebarAutoOpened = true;
-                            return true;
-                        }
-
-                        if (collapsedControl) {
-              collapsedControl.click();
-                            parentWindow.__exhumSidebarAutoOpened = true;
+            if (parentWindow.__exhumSidebarAutoOpened || isSidebarOpen()) {
+              parentWindow.__exhumSidebarAutoOpened = true;
               return true;
             }
 
-            return false;
+            const openControl = findOpenControl();
+            if (!openControl) return false;
+
+            dispatchClick(openControl);
+            const opened = isSidebarOpen();
+            if (opened) {
+              parentWindow.__exhumSidebarAutoOpened = true;
+            }
+            return opened;
           }
 
-          if (openSidebarIfNeeded()) {
-            return;
-          }
+          if (openSidebarIfNeeded()) return;
+
+          let attempts = 0;
+          const interval = parentWindow.setInterval(() => {
+            attempts += 1;
+            if (openSidebarIfNeeded() || attempts >= MAX_ATTEMPTS) {
+              parentWindow.clearInterval(interval);
+              observer.disconnect();
+            }
+          }, RETRY_MS);
 
           const observer = new MutationObserver(() => {
             if (openSidebarIfNeeded()) {
               observer.disconnect();
+              parentWindow.clearInterval(interval);
             }
           });
 
-          observer.observe(parentDoc.body, { childList: true, subtree: true });
-          setTimeout(() => observer.disconnect(), 4000);
-
-          parentWindow.addEventListener('load', openSidebarIfNeeded, { once: true });
+          observer.observe(parentDoc.body, { childList: true, subtree: true, attributes: true });
+          parentWindow.setTimeout(() => {
+            observer.disconnect();
+            parentWindow.clearInterval(interval);
+          }, MAX_ATTEMPTS * RETRY_MS);
         })();
         </script>
         """,
@@ -156,82 +205,107 @@ def ensure_sidebar_open_on_load() -> None:
 
 
 def close_sidebar_after_mobile_start() -> None:
-        if not st.session_state.get("close_sidebar_after_start"):
-                return
+    if not st.session_state.get("close_sidebar_after_start"):
+        return
 
-        components.html(
-                """
-                <script>
-                (function () {
-                    const parentWindow = window.parent;
-                    const parentDoc = parentWindow.document;
+    components.html(
+        """
+        <script>
+        (function () {
+          const parentWindow = window.parent;
+          const parentDoc = parentWindow.document;
+          const MAX_ATTEMPTS = 80;
+          const RETRY_MS = 150;
 
-                    if ((parentWindow.innerWidth || 0) > 1024) {
-                        return;
-                    }
+          if ((parentWindow.innerWidth || 0) > 1024) {
+            return;
+          }
 
-                    function forceClosedState(sidebar) {
-                        sidebar.setAttribute('aria-expanded', 'false');
-                        sidebar.style.transform = 'translateX(calc(-1 * min(22rem, 86vw)))';
-                        sidebar.style.boxShadow = 'none';
-                        sidebar.style.borderRight = 'none';
-                    }
+          function findOpenControl() {
+            return (
+              parentDoc.querySelector('[data-testid="collapsedControl"] button') ||
+              parentDoc.querySelector('[data-testid="collapsedControl"]') ||
+              parentDoc.querySelector('button[aria-label*="Open sidebar"]') ||
+              parentDoc.querySelector('button[title*="Open sidebar"]')
+            );
+          }
 
-                    function closeSidebarIfReady() {
-                        const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
-                        if (!sidebar) {
-                            return false;
-                        }
+          function findCloseControl() {
+            return (
+              parentDoc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
+              parentDoc.querySelector('[data-testid="stSidebarCollapseButton"]') ||
+              parentDoc.querySelector('button[aria-label*="Close sidebar"]') ||
+              parentDoc.querySelector('button[title*="Close sidebar"]')
+            );
+          }
 
-                        if (sidebar.getAttribute('aria-expanded') === 'false') {
-                            forceClosedState(sidebar);
-                            return true;
-                        }
+          function dispatchClick(element) {
+            if (!element) return false;
+            ['pointerdown', 'mousedown', 'mouseup', 'click'].forEach((eventName) => {
+              element.dispatchEvent(new MouseEvent(eventName, {
+                bubbles: true,
+                cancelable: true,
+                view: parentWindow,
+              }));
+            });
+            return true;
+          }
 
-                        const collapseControl =
-                            parentDoc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
-                            parentDoc.querySelector('[data-testid="stSidebarCollapseButton"]');
+          function isSidebarClosed() {
+            const openControl = findOpenControl();
+            if (openControl) return true;
 
-                        if (!collapseControl) {
-                            return false;
-                        }
+            const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
+            if (!sidebar) return false;
 
-                        collapseControl.click();
-                        forceClosedState(sidebar);
-                        return sidebar.getAttribute('aria-expanded') === 'false';
-                    }
+            const expandedAttr = sidebar.getAttribute('aria-expanded');
+            if (expandedAttr === 'false') return true;
+            if (expandedAttr === 'true') return false;
 
-                    if (closeSidebarIfReady()) {
-                        return;
-                    }
+            const computedStyle = parentWindow.getComputedStyle(sidebar);
+            return computedStyle.transform !== 'none' && computedStyle.transform.includes('-');
+          }
 
-                    let attempts = 0;
-                    const interval = parentWindow.setInterval(function () {
-                        attempts += 1;
-                        if (closeSidebarIfReady() || attempts > 40) {
-                            parentWindow.clearInterval(interval);
-                        }
-                    }, 100);
+          function closeSidebarIfNeeded() {
+            if (isSidebarClosed()) return true;
 
-                    const observer = new MutationObserver(function () {
-                        if (closeSidebarIfReady()) {
-                            observer.disconnect();
-                            parentWindow.clearInterval(interval);
-                        }
-                    });
+            const closeControl = findCloseControl();
+            if (!closeControl) return false;
 
-                    observer.observe(parentDoc.body, { childList: true, subtree: true, attributes: true });
-                    parentWindow.setTimeout(function () {
-                        observer.disconnect();
-                        parentWindow.clearInterval(interval);
-                    }, 5000);
-                })();
-                </script>
-                """,
-                height=0,
-                width=0,
-        )
-        st.session_state.close_sidebar_after_start = False
+            dispatchClick(closeControl);
+            return isSidebarClosed();
+          }
+
+          if (closeSidebarIfNeeded()) return;
+
+          let attempts = 0;
+          const interval = parentWindow.setInterval(() => {
+            attempts += 1;
+            if (closeSidebarIfNeeded() || attempts >= MAX_ATTEMPTS) {
+              parentWindow.clearInterval(interval);
+              observer.disconnect();
+            }
+          }, RETRY_MS);
+
+          const observer = new MutationObserver(() => {
+            if (closeSidebarIfNeeded()) {
+              observer.disconnect();
+              parentWindow.clearInterval(interval);
+            }
+          });
+
+          observer.observe(parentDoc.body, { childList: true, subtree: true, attributes: true });
+          parentWindow.setTimeout(() => {
+            observer.disconnect();
+            parentWindow.clearInterval(interval);
+          }, MAX_ATTEMPTS * RETRY_MS);
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+    st.session_state.close_sidebar_after_start = False
 
 
 def render_section_title(icon: str, label: str, extra_class: str = "") -> None:

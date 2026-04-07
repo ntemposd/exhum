@@ -954,8 +954,8 @@ def apply_styles() -> None:
     }
 
     .exhum-avatar {
-        width: 64px;
-        height: 64px;
+        width: 44px;
+        height: 44px;
         border-radius: 0;
         border: 1px solid #000000;
         display: flex;
@@ -2108,8 +2108,8 @@ def apply_styles() -> None:
         }
 
         .exhum-avatar {
-            width: 64px;
-            height: 64px;
+            width: 44px;
+            height: 44px;
         }
 
         .exhum-legend-avatar {

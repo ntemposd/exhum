@@ -98,214 +98,70 @@ st.markdown(
 )
 
 
-def ensure_sidebar_open_on_load() -> None:
-    if st.session_state.get("close_sidebar_after_start"):
+def sync_mobile_sidebar(command: str) -> None:
+    if command not in {"open", "close"}:
         return
 
     components.html(
-        """
+        f"""
         <script>
-        (function () {
+        (function () {{
           const parentWindow = window.parent;
           const parentDoc = parentWindow.document;
+          const command = "{command}";
           const MAX_ATTEMPTS = 80;
           const RETRY_MS = 150;
 
-          function findOpenControl() {
-            return (
-              parentDoc.querySelector('[data-testid="collapsedControl"] button') ||
-              parentDoc.querySelector('[data-testid="collapsedControl"]') ||
-              parentDoc.querySelector('button[aria-label*="Open sidebar"]') ||
-              parentDoc.querySelector('button[title*="Open sidebar"]')
-            );
-          }
-
-          function findCloseControl() {
-            return (
-              parentDoc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
-              parentDoc.querySelector('[data-testid="stSidebarCollapseButton"]') ||
-              parentDoc.querySelector('button[aria-label*="Close sidebar"]') ||
-              parentDoc.querySelector('button[title*="Close sidebar"]')
-            );
-          }
-
-          function dispatchClick(element) {
-            if (!element) return false;
-            ['pointerdown', 'mousedown', 'mouseup', 'click'].forEach((eventName) => {
-              element.dispatchEvent(new MouseEvent(eventName, {
-                bubbles: true,
-                cancelable: true,
-                view: parentWindow,
-              }));
-            });
-            return true;
-          }
-
-          function isSidebarOpen() {
-            const closeControl = findCloseControl();
-            if (closeControl) return true;
-
-            const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
-            if (!sidebar) return false;
-
-            const expandedAttr = sidebar.getAttribute('aria-expanded');
-            if (expandedAttr === 'true') return true;
-            if (expandedAttr === 'false') return false;
-
-            const computedStyle = parentWindow.getComputedStyle(sidebar);
-            return computedStyle.transform === 'none' || !computedStyle.transform.includes('-');
-          }
-
-          function openSidebarIfNeeded() {
-            if (parentWindow.__exhumSidebarAutoOpened || isSidebarOpen()) {
-              parentWindow.__exhumSidebarAutoOpened = true;
-              return true;
-            }
-
-            const openControl = findOpenControl();
-            if (!openControl) return false;
-
-            dispatchClick(openControl);
-            const opened = isSidebarOpen();
-            if (opened) {
-              parentWindow.__exhumSidebarAutoOpened = true;
-            }
-            return opened;
-          }
-
-          if (openSidebarIfNeeded()) return;
-
-          let attempts = 0;
-          const interval = parentWindow.setInterval(() => {
-            attempts += 1;
-            if (openSidebarIfNeeded() || attempts >= MAX_ATTEMPTS) {
-              parentWindow.clearInterval(interval);
-              observer.disconnect();
-            }
-          }, RETRY_MS);
-
-          const observer = new MutationObserver(() => {
-            if (openSidebarIfNeeded()) {
-              observer.disconnect();
-              parentWindow.clearInterval(interval);
-            }
-          });
-
-          observer.observe(parentDoc.body, { childList: true, subtree: true, attributes: true });
-          parentWindow.setTimeout(() => {
-            observer.disconnect();
-            parentWindow.clearInterval(interval);
-          }, MAX_ATTEMPTS * RETRY_MS);
-        })();
-        </script>
-        """,
-        height=0,
-        width=0,
-    )
-
-
-def close_sidebar_after_mobile_start() -> None:
-    if not st.session_state.get("close_sidebar_after_start"):
-        return
-
-    components.html(
-        """
-        <script>
-        (function () {
-          const parentWindow = window.parent;
-          const parentDoc = parentWindow.document;
-          const MAX_ATTEMPTS = 80;
-          const RETRY_MS = 150;
-
-          if ((parentWindow.innerWidth || 0) > 1024) {
+          if ((parentWindow.innerWidth || 0) > 1024) {{
             return;
-          }
+          }}
 
-          function findOpenControl() {
-            return (
-              parentDoc.querySelector('[data-testid="collapsedControl"] button') ||
-              parentDoc.querySelector('[data-testid="collapsedControl"]') ||
-              parentDoc.querySelector('button[aria-label*="Open sidebar"]') ||
-              parentDoc.querySelector('button[title*="Open sidebar"]')
-            );
-          }
+          function findSidebar() {{
+            return parentDoc.querySelector('section[data-testid="stSidebar"]');
+          }}
 
-          function findCloseControl() {
-            return (
-              parentDoc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
-              parentDoc.querySelector('[data-testid="stSidebarCollapseButton"]') ||
-              parentDoc.querySelector('button[aria-label*="Close sidebar"]') ||
-              parentDoc.querySelector('button[title*="Close sidebar"]')
-            );
-          }
-
-          function dispatchClick(element) {
-            if (!element) return false;
-            ['pointerdown', 'mousedown', 'mouseup', 'click'].forEach((eventName) => {
-              element.dispatchEvent(new MouseEvent(eventName, {
-                bubbles: true,
-                cancelable: true,
-                view: parentWindow,
-              }));
-            });
-            return true;
-          }
-
-          function isSidebarClosed() {
-            const openControl = findOpenControl();
-            if (openControl) return true;
-
-            const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
+          function applySidebarState() {{
+            const sidebar = findSidebar();
             if (!sidebar) return false;
 
-            const expandedAttr = sidebar.getAttribute('aria-expanded');
-            if (expandedAttr === 'false') return true;
-            if (expandedAttr === 'true') return false;
+            // Do not keep inline transform overrides; rely on CSS + aria-expanded.
+            sidebar.style.removeProperty('transform');
+            sidebar.style.removeProperty('box-shadow');
+            sidebar.style.removeProperty('border-right');
+            sidebar.setAttribute('aria-expanded', command === "close" ? 'false' : 'true');
 
-            const computedStyle = parentWindow.getComputedStyle(sidebar);
-            return computedStyle.transform !== 'none' && computedStyle.transform.includes('-');
-          }
+            return true;
+          }}
 
-          function closeSidebarIfNeeded() {
-            if (isSidebarClosed()) return true;
-
-            const closeControl = findCloseControl();
-            if (!closeControl) return false;
-
-            dispatchClick(closeControl);
-            return isSidebarClosed();
-          }
-
-          if (closeSidebarIfNeeded()) return;
+          if (applySidebarState()) return;
 
           let attempts = 0;
-          const interval = parentWindow.setInterval(() => {
+          const interval = parentWindow.setInterval(() => {{
             attempts += 1;
-            if (closeSidebarIfNeeded() || attempts >= MAX_ATTEMPTS) {
+            if (applySidebarState() || attempts >= MAX_ATTEMPTS) {{
               parentWindow.clearInterval(interval);
               observer.disconnect();
-            }
-          }, RETRY_MS);
+            }}
+          }}, RETRY_MS);
 
-          const observer = new MutationObserver(() => {
-            if (closeSidebarIfNeeded()) {
+          const observer = new MutationObserver(() => {{
+            if (applySidebarState()) {{
               observer.disconnect();
               parentWindow.clearInterval(interval);
-            }
-          });
+            }}
+          }});
 
-          observer.observe(parentDoc.body, { childList: true, subtree: true, attributes: true });
-          parentWindow.setTimeout(() => {
+          observer.observe(parentDoc.body, {{ childList: true, subtree: true, attributes: true }});
+          parentWindow.setTimeout(() => {{
             observer.disconnect();
             parentWindow.clearInterval(interval);
-          }, MAX_ATTEMPTS * RETRY_MS);
-        })();
+          }}, MAX_ATTEMPTS * RETRY_MS);
+        }})();
         </script>
         """,
         height=0,
         width=0,
     )
-    st.session_state.close_sidebar_after_start = False
 
 
 def render_section_title(icon: str, label: str, extra_class: str = "") -> None:
@@ -644,6 +500,7 @@ def init_session_state() -> None:
         "agents_backend_url": "",
         "agents_payload_cache": None,
         "close_sidebar_after_start": False,
+        "mobile_sidebar_bootstrapped": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -658,9 +515,11 @@ def init_session_state() -> None:
 init_session_state()
 
 if st.session_state.close_sidebar_after_start:
-    close_sidebar_after_mobile_start()
-else:
-    ensure_sidebar_open_on_load()
+    sync_mobile_sidebar("close")
+    st.session_state.close_sidebar_after_start = False
+elif not st.session_state.mobile_sidebar_bootstrapped:
+    sync_mobile_sidebar("open")
+    st.session_state.mobile_sidebar_bootstrapped = True
 
 
 def load_agents_payload() -> Dict[str, Any]:

@@ -50,7 +50,7 @@ st.markdown(
     @media (max-width: 1024px) {
         .stApp [data-testid="stAppViewContainer"] .main .block-container,
         .stApp .stMainBlockContainer.block-container {
-            padding-top: calc(var(--exhum-main-top-gap) * 0.5) !important;
+            padding-top: calc(var(--exhum-main-top-gap) * 0.62) !important;
             padding-left: 0.75rem !important;
             padding-right: 0.75rem !important;
         }
@@ -69,6 +69,10 @@ st.markdown(
         div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
             padding-left: 0 !important;
             padding-right: 0 !important;
+        }
+
+        div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:has(.st-key-telemetry_panel) {
+            margin-top: 0.9rem !important;
         }
 
         .exhum-telemetry-title,
@@ -95,6 +99,9 @@ st.markdown(
 
 
 def ensure_sidebar_open_on_load() -> None:
+    if st.session_state.get("close_sidebar_after_start"):
+        return
+
     components.html(
         """
         <script>
@@ -112,13 +119,13 @@ def ensure_sidebar_open_on_load() -> None:
               parentDoc.querySelector('[data-testid="collapsedControl"] button') ||
               parentDoc.querySelector('[data-testid="collapsedControl"]');
 
+                        if (sidebar && sidebar.getAttribute('aria-expanded') !== 'false') {
+                            parentWindow.__exhumSidebarAutoOpened = true;
+                            return true;
+                        }
+
                         if (collapsedControl) {
               collapsedControl.click();
-                            parentWindow.__exhumSidebarAutoOpened = true;
-              return true;
-            }
-
-                        if (sidebar && sidebar.getAttribute('aria-expanded') !== 'false') {
                             parentWindow.__exhumSidebarAutoOpened = true;
               return true;
             }
@@ -148,9 +155,6 @@ def ensure_sidebar_open_on_load() -> None:
     )
 
 
-ensure_sidebar_open_on_load()
-
-
 def close_sidebar_after_mobile_start() -> None:
         if not st.session_state.get("close_sidebar_after_start"):
                 return
@@ -166,9 +170,21 @@ def close_sidebar_after_mobile_start() -> None:
                         return;
                     }
 
-                    function closeSidebarIfOpen() {
+                    function forceClosedState(sidebar) {
+                        sidebar.setAttribute('aria-expanded', 'false');
+                        sidebar.style.transform = 'translateX(calc(-1 * min(22rem, 86vw)))';
+                        sidebar.style.boxShadow = 'none';
+                        sidebar.style.borderRight = 'none';
+                    }
+
+                    function closeSidebarIfReady() {
                         const sidebar = parentDoc.querySelector('section[data-testid="stSidebar"]');
-                        if (!sidebar || sidebar.getAttribute('aria-expanded') === 'false') {
+                        if (!sidebar) {
+                            return false;
+                        }
+
+                        if (sidebar.getAttribute('aria-expanded') === 'false') {
+                            forceClosedState(sidebar);
                             return true;
                         }
 
@@ -181,20 +197,34 @@ def close_sidebar_after_mobile_start() -> None:
                         }
 
                         collapseControl.click();
-                        return true;
+                        forceClosedState(sidebar);
+                        return sidebar.getAttribute('aria-expanded') === 'false';
                     }
 
-                    if (closeSidebarIfOpen()) {
+                    if (closeSidebarIfReady()) {
                         return;
                     }
 
                     let attempts = 0;
                     const interval = parentWindow.setInterval(function () {
                         attempts += 1;
-                        if (closeSidebarIfOpen() || attempts > 20) {
+                        if (closeSidebarIfReady() || attempts > 40) {
                             parentWindow.clearInterval(interval);
                         }
-                    }, 120);
+                    }, 100);
+
+                    const observer = new MutationObserver(function () {
+                        if (closeSidebarIfReady()) {
+                            observer.disconnect();
+                            parentWindow.clearInterval(interval);
+                        }
+                    });
+
+                    observer.observe(parentDoc.body, { childList: true, subtree: true, attributes: true });
+                    parentWindow.setTimeout(function () {
+                        observer.disconnect();
+                        parentWindow.clearInterval(interval);
+                    }, 5000);
                 })();
                 </script>
                 """,
@@ -553,6 +583,11 @@ def init_session_state() -> None:
 
 init_session_state()
 
+if st.session_state.close_sidebar_after_start:
+    close_sidebar_after_mobile_start()
+else:
+    ensure_sidebar_open_on_load()
+
 
 def load_agents_payload() -> Dict[str, Any]:
     cached_backend_url = str(st.session_state.get("agents_backend_url", ""))
@@ -753,6 +788,8 @@ with st.sidebar:
                     st.session_state.thinking_message_id = ""
                     st.session_state.thinking_visible = False
 
+                st.rerun()
+
         if stop:
             st.session_state.discussion_active = False
             stop_feedback.info("Round paused.")
@@ -846,8 +883,6 @@ with col_chat:
     )
 with col_panel:
     render_telemetry_section(available_agents)
-
-close_sidebar_after_mobile_start()
 
 
 # ============================================================================

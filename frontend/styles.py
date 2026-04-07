@@ -14,7 +14,7 @@ def apply_styles() -> None:
 
     :root {
         --exhum-native-header-height: 3.75rem;
-        --exhum-main-top-gap: 3.25rem;
+        --exhum-main-top-gap: 4.5rem;
     }
 
     .stApp {
@@ -822,6 +822,7 @@ def apply_styles() -> None:
         flex: 1;
         min-width: 0;
         flex-direction: column;
+        justify-content: flex-end;
         gap: 3px;
     }
 
@@ -892,6 +893,10 @@ def apply_styles() -> None:
         align-items: flex-start;
         gap: 10px;
         margin-bottom: 12px;
+    }
+
+    .exhum-bubble-header-static {
+        align-items: flex-end;
     }
 
     .exhum-brand-logo {
@@ -969,6 +974,11 @@ def apply_styles() -> None:
     }
 
     .exhum-name {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-family: 'IBM Plex Mono', monospace !important;
         font-weight: 800;
         font-size: 1.45rem;
@@ -1364,7 +1374,7 @@ def apply_styles() -> None:
 
     .exhum-telemetry-token-note {
         border-top: 2px solid #111111;
-        margin-top: 0.15rem;
+        margin-top: 0.05rem;
         padding-top: 0.45rem;
         padding-bottom: 0.75rem;
     }
@@ -2063,9 +2073,13 @@ def apply_styles() -> None:
     @media (max-width: 900px) {
         .main .block-container,
         .stMainBlockContainer.block-container {
-            padding-top: calc(var(--exhum-main-top-gap) * 0.5) !important;
+            padding-top: calc(var(--exhum-main-top-gap) * 0.62) !important;
             padding-left: 0.6rem !important;
             padding-right: 0.6rem !important;
+        }
+
+        .st-key-telemetry_panel {
+            margin-top: 1.35rem !important;
         }
 
         .exhum-card {

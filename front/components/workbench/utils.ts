@@ -1,4 +1,3 @@
-import { backendUrl } from "@/lib/config";
 import legendCatalog from "@/lib/legends";
 import type { Agent } from "@/lib/types";
 
@@ -21,7 +20,7 @@ export function clampNumber(value: number, minValue: number, maxValue: number) {
 }
 
 export function avatarUrlForAgent(agentId: string) {
-  return `${backendUrl}/static/avatars/${agentId}.png`;
+  return `/avatars/${agentId}.png`;
 }
 
 export function getStyleIndex(agentId: string) {
@@ -33,7 +32,7 @@ export function getStyleIndex(agentId: string) {
 }
 
 export function logoUrl() {
-  return `${backendUrl}/static/logo.png`;
+  return "/logo.png";
 }
 
 export function sanitizeDebateMessageText(text: string, displayName?: string) {

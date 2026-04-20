@@ -44,10 +44,12 @@ export function DiscussionPanel({
 
   return (
     <section className="chatColumn">
-      <div className="chatCard">
+      <div className="discussionPane">
         <header className="chatHeader">
-          <h2 className="sectionTitle columnTitle">DISCUSSION</h2>
-          <p className="discussionStatus">{statusNote}</p>
+          <div className="discussionTitleRow">
+            <h2 className="sectionTitle columnTitle">DISCUSSION</h2>
+            <p className="discussionStatus">[{statusNote.toUpperCase()}]</p>
+          </div>
         </header>
 
         <div className="topicSection">

@@ -568,10 +568,12 @@ body.sidebarResizing .sidebarResizeHandle::after {
 }
 
 .agentCard {
+  display: grid;
+  gap: 12px;
   padding: 12px;
   cursor: pointer;
   text-align: left;
-  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, border-color 120ms ease;
 }
 
 .legendCardStatic {
@@ -582,15 +584,22 @@ body.sidebarResizing .sidebarResizeHandle::after {
   width: 100%;
 }
 
+.agentCardTopRow {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 24px;
+}
+
 .agentCardHeader {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 0;
 }
 
 .agentIdentity {
   min-width: 0;
+  padding-top: 4px;
 }
 
 .agentNameRow {
@@ -604,6 +613,7 @@ body.sidebarResizing .sidebarResizeHandle::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   min-height: 24px;
   padding: 0 8px;
   border: 2px solid var(--line);
@@ -613,6 +623,21 @@ body.sidebarResizing .sidebarResizeHandle::after {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.agentDraftState::after {
+  content: attr(data-hover-label);
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+
+.agentDraftStateText,
+.agentDraftState::after {
+  transition: opacity 120ms ease;
 }
 
 .agentPortrait,
@@ -631,41 +656,77 @@ body.sidebarResizing .sidebarResizeHandle::after {
   box-shadow: 4px 4px 0 var(--line);
 }
 
-.agentCard:hover {
+.agentCard:not(.agentCardActive):hover {
   transform: translate(-2px, -2px);
-  box-shadow: 10px 10px 0 var(--line);
+  background: linear-gradient(180deg, #efffdc, #c9ef97);
+  box-shadow: 10px 10px 0 #547a1f;
+  border-color: #547a1f;
 }
 
 .agentCardActive {
-  background: linear-gradient(180deg, #fff8d1, #ffe588);
-  box-shadow: 10px 10px 0 var(--accent);
+  background: linear-gradient(180deg, #efffdc, #c9ef97);
+  box-shadow: 10px 10px 0 #547a1f;
+  border-color: #547a1f;
+}
+
+.agentCardActive:hover {
+  transform: translate(-2px, -2px);
+  background: linear-gradient(180deg, #ffd9d2, #f59c8b);
+  box-shadow: 10px 10px 0 #b91c1c;
+  border-color: #b91c1c;
 }
 
 .agentName {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   font-family: var(--font-display), sans-serif;
   font-size: 1.02rem;
   font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .agentMeta,
-.helper,
-.emptyState,
-.statusNote {
+.agentDescription {
   margin: 0;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   line-height: 1.5;
 }
 
-.chatCard {
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100vh - 116px);
+.agentDescription {
+  max-width: 100%;
   overflow: hidden;
-  border: none;
-  background: transparent;
-  box-shadow: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.agentCard:hover .agentDraftState,
+.agentCardActive .agentDraftState {
+  background: #fff;
+  box-shadow: 2px 2px 0 var(--line);
+  border-color: var(--line);
+}
+
+.agentCard:hover .agentDraftStateText {
+  opacity: 0;
+}
+
+.agentCard:hover .agentDraftState::after {
+  opacity: 1;
+}
+
+.agentCardActive:hover .agentDraftState {
+  border-color: #b91c1c;
+}
+
+.helper,
+.emptyState,
+.statusNote {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 
 .draftedCouncil {
@@ -743,7 +804,7 @@ body.sidebarResizing .sidebarResizeHandle::after {
 }
 
 .entropySlider::-webkit-slider-runnable-track {
-  height: 10px;
+  height: 12px;
   border: 2px solid var(--line);
   background: linear-gradient(to right, #facc15 0, #facc15 var(--slider-fill), transparent var(--slider-fill), transparent 100%),
     linear-gradient(180deg, #fffdf8, #fffdf8);
@@ -753,17 +814,19 @@ body.sidebarResizing .sidebarResizeHandle::after {
 .entropySlider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 24px;
-  height: 18px;
-  margin-top: -4px;
-  border: none;
-  background: linear-gradient(180deg, #ffd84a, #eab308);
-  clip-path: polygon(50% 100%, 100% 0, 0 0);
-  filter: drop-shadow(2px 2px 0 var(--line));
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 2px solid var(--line);
+  border-radius: 0;
+  background: #2e3a4d;
+  box-shadow: 2px 3px 0 #14110f;
+  clip-path: none;
+  filter: none;
 }
 
 .entropySlider::-moz-range-track {
-  height: 10px;
+  height: 12px;
   border: 2px solid var(--line);
   background: linear-gradient(180deg, #fffdf8, #fffdf8);
   box-shadow: 3px 3px 0 var(--line);
@@ -777,13 +840,14 @@ body.sidebarResizing .sidebarResizeHandle::after {
 }
 
 .entropySlider::-moz-range-thumb {
-  width: 24px;
-  height: 18px;
-  border: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--line);
   border-radius: 0;
-  background: linear-gradient(180deg, #ffd84a, #eab308);
-  clip-path: polygon(50% 100%, 100% 0, 0 0);
-  filter: drop-shadow(2px 2px 0 var(--line));
+  background: #2e3a4d;
+  box-shadow: 2px 3px 0 #14110f;
+  clip-path: none;
+  filter: none;
 }
 
 .entropySlider:disabled {
@@ -818,6 +882,18 @@ body.sidebarResizing .sidebarResizeHandle::after {
   flex: 0 0 auto;
 }
 
+.discussionPane {
+  display: grid;
+  gap: 0;
+}
+
+.discussionTitleRow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: nowrap;
+}
+
 .topicSection {
   display: grid;
   gap: 8px;
@@ -849,9 +925,8 @@ body.sidebarResizing .sidebarResizeHandle::after {
 .chatHeader {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
-  /* min-height: 50px; */
   padding: 0 22px;
   border-bottom: none;
   background: transparent;
@@ -865,7 +940,8 @@ body.sidebarResizing .sidebarResizeHandle::after {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  text-align: right;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .transcript {
@@ -1396,7 +1472,7 @@ body.sidebarResizing .sidebarResizeHandle::after {
 .speakerModalGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 22px 20px;
 }
 
 .telemetryBlock {

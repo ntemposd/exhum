@@ -133,7 +133,7 @@ export function ControlSidebar({
                 {startButtonLabel}
               </button>
               <button className="buttonGhost" type="button" onClick={onHaltDebate} disabled={!discussionActive}>
-                ⏸️ Halt Debate
+                🛑 Halt Debate
               </button>
             </div>
 
@@ -161,7 +161,7 @@ export function ControlSidebar({
             </div>
             <div className="actions actionsCompact sessionActions">
               <button className="buttonGhost" type="button" onClick={onRenewSession}>
-                🔄 Refresh Session
+                ⟳ Refresh Session
               </button>
             </div>
           </SidebarSection>

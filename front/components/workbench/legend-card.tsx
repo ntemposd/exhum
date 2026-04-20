@@ -14,9 +14,15 @@ type LegendCardProps = {
 
 export function LegendCard({ legend, agent, badge, active = false, onClick, disabled = false }: LegendCardProps) {
   const className = `agentCard ${active ? "agentCardActive" : ""} ${onClick ? "legendCardButton" : "legendCardStatic"}`.trim();
+  const hoverBadge = active ? "REMOVE" : "DRAFT NOW";
 
   const content = (
     <>
+      <div className="agentCardTopRow">
+        <span className="agentDraftState" data-hover-label={hoverBadge}>
+          <span className="agentDraftStateText">{badge}</span>
+        </span>
+      </div>
       <div className="agentCardHeader">
         <img
           className="agentPortrait"
@@ -25,17 +31,10 @@ export function LegendCard({ legend, agent, badge, active = false, onClick, disa
           loading="lazy"
         />
         <div className="agentIdentity">
-          <div className="agentNameRow">
-            <p className="agentName">{legend.display_name}</p>
-            <span className="agentDraftState">{badge}</span>
-          </div>
-          <p className="agentMeta">{legend.archetype}</p>
-          <p className="agentMeta">ID: {legend.agent_id}</p>
+          <p className="agentName">{legend.display_name}</p>
+          <p className="agentDescription">{legend.archetype}</p>
         </div>
       </div>
-      <p className="agentMeta">
-        Temp {agent?.temperature ?? "--"} · Max {agent?.max_tokens ?? "--"} tokens
-      </p>
     </>
   );
 

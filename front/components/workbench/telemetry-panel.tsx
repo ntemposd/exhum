@@ -199,8 +199,8 @@ export function TelemetryPanel({
                 <span className="telemetryTokenBadge">{requestCount} {requestCount === 1 ? "Request" : "Requests"}</span>
               </div>
             </div>
-            {tokenTableRows.length > 0 ? <TelemetryTable rows={tokenTableRows} /> : <p className="statusNote">No request metrics yet.</p>}
-            <p className="telemetryNote">Each turn is one model request.</p>
+            {tokenTableRows.length > 0 ? <TelemetryTable rows={tokenTableRows} /> : <p className="statusNote">No request metrics yet. Each turn will be one model request.</p>}
+            {/* <p className="telemetryNote">Each turn is one model request.</p> */}
           </div>
         </SidebarSection>
 

@@ -92,3 +92,5 @@ backend/logs.*.json
 front/node_modules/
 front/.next/
 front/.vercel/
+!front/lib/
+!front/lib/**

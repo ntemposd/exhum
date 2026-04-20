@@ -7,6 +7,7 @@ Storage stack:
 - Upstash Vector: discussion message vectors for semantic retrieval
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -14,16 +15,17 @@ import re
 import string
 import tempfile
 import time
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Literal, Optional
 from uuid import UUID, uuid4
 
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fpdf import FPDF
 from pydantic import BaseModel, Field
@@ -58,6 +60,40 @@ else:
 
 STATIC_DIR = BASE_DIR / "static"
 
+PDF_FONT_SEARCH_PATHS = {
+    "regular": [
+        Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "segoeui.ttf",
+        Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "arial.ttf",
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+        Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"),
+    ],
+    "bold": [
+        Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "segoeuib.ttf",
+        Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "arialbd.ttf",
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+        Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"),
+    ],
+    "italic": [
+        Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "segoeuii.ttf",
+        Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "ariali.ttf",
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"),
+        Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Italic.ttf"),
+    ],
+}
+
+PDF_TEXT_REPLACEMENTS = str.maketrans(
+    {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2026": "...",
+        "\u00a0": " ",
+    }
+)
+
 # Load environment variables from the local .env file when present.
 load_dotenv(BASE_DIR / ".env")
 
@@ -69,6 +105,101 @@ UPSTASH_VECTOR_REST_TOKEN = os.getenv("UPSTASH_VECTOR_REST_TOKEN")
 LLM_API_KEY = os.getenv("LLM_API_KEY")
 LLM_MODEL_ID = os.getenv("LLM_MODEL_ID", "llama-3.1-8b-instant")
 LLM_API_BASE_URL = os.getenv("LLM_API_BASE_URL", "https://api.groq.com/openai/v1")
+LLM_429_MAX_RETRIES = max(0, int(os.getenv("LLM_429_MAX_RETRIES", "3")))
+LLM_REQUEST_THROTTLE_SECONDS = max(0.0, float(os.getenv("LLM_REQUEST_THROTTLE_SECONDS", "0.0")))
+
+_llm_provider_gate_lock = asyncio.Lock()
+_llm_provider_last_request_at = 0.0
+_llm_provider_cooldown_until = 0.0
+
+
+def _parse_cors_origins(raw_value: Optional[str]) -> List[str]:
+    if not raw_value:
+        return []
+    return [origin.strip().rstrip("/") for origin in raw_value.split(",") if origin.strip()]
+
+
+def _extract_provider_error_text(response: httpx.Response) -> str:
+    try:
+        data = response.json()
+        if isinstance(data, dict):
+            error_payload = data.get("error")
+            if isinstance(error_payload, dict):
+                return str(
+                    error_payload.get("message")
+                    or error_payload.get("error")
+                    or error_payload.get("code")
+                    or error_payload
+                )
+            return str(data.get("message") or data.get("error") or data)
+        return str(data)
+    except Exception:
+        return response.text[:300] if response is not None else "No response body"
+
+
+def _parse_retry_after_seconds(response: httpx.Response, error_text: str) -> float:
+    retry_after_value = response.headers.get("retry-after") if response is not None else None
+    if retry_after_value:
+        try:
+            return max(0.0, float(retry_after_value.strip()))
+        except ValueError:
+            pass
+
+    retry_match = re.search(r"try again in\s*([0-9]+(?:\.[0-9]+)?)s", error_text, flags=re.IGNORECASE)
+    if retry_match:
+        return max(0.0, float(retry_match.group(1)))
+
+    return 0.0
+
+
+async def _wait_for_provider_slot() -> None:
+    global _llm_provider_last_request_at
+
+    async with _llm_provider_gate_lock:
+        now = time.monotonic()
+        earliest_request_time = max(
+            _llm_provider_cooldown_until,
+            _llm_provider_last_request_at + LLM_REQUEST_THROTTLE_SECONDS,
+        )
+        sleep_for = earliest_request_time - now
+
+        if sleep_for > 0:
+            logger.info("Throttling LLM provider requests for %.2fs", sleep_for)
+            await asyncio.sleep(sleep_for)
+
+        _llm_provider_last_request_at = time.monotonic()
+
+
+async def _register_provider_cooldown(delay_seconds: float) -> float:
+    global _llm_provider_cooldown_until
+
+    bounded_delay = max(0.0, delay_seconds)
+    if bounded_delay <= 0:
+        return 0.0
+
+    async with _llm_provider_gate_lock:
+        _llm_provider_cooldown_until = max(_llm_provider_cooldown_until, time.monotonic() + bounded_delay)
+
+    return bounded_delay
+
+
+async def _sleep_for_retry(delay_seconds: float, attempt_number: int) -> None:
+    retry_delay = await _register_provider_cooldown(delay_seconds)
+    logger.warning(
+        "LLM provider returned 429, backing off for %.2fs before retry %s/%s",
+        retry_delay,
+        attempt_number,
+        LLM_429_MAX_RETRIES,
+    )
+    await asyncio.sleep(retry_delay)
+
+
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+CORS_ALLOW_ORIGINS = _parse_cors_origins(os.getenv("CORS_ALLOW_ORIGINS")) or DEFAULT_CORS_ORIGINS
+CORS_ALLOW_ORIGIN_REGEX = os.getenv("CORS_ALLOW_ORIGIN_REGEX", r"https://.*\.vercel\.app")
 
 missing_env: List[str] = []
 for env_name in (
@@ -96,8 +227,9 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ALLOW_ORIGINS,
+    allow_origin_regex=CORS_ALLOW_ORIGIN_REGEX,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -134,11 +266,42 @@ class ProcessTurnResponse(BaseModel):
     execution_metrics: "ExecutionMetrics"
 
 
+class ProcessTurnStreamChunk(BaseModel):
+    type: Literal["chunk"]
+    content: str
+
+
+class ProcessTurnStreamFinal(BaseModel):
+    type: Literal["final"]
+    message_id: UUID
+    agent_id: str
+    display_name: str
+    message: str
+    turn_number: int
+    created_at: datetime
+    telemetry: "TelemetryData"
+    execution_metrics: "ExecutionMetrics"
+
+
 class GenerateRequest(BaseModel):
     session_id: UUID = Field(..., description="Unique session identifier")
     topic: str = Field(..., min_length=1, max_length=255, description="Discussion topic")
     agent_id: str = Field(..., description="Agent to generate response for")
     previous_response: Optional[str] = Field(None, description="Previous agent's response for entropy calculation")
+
+
+class ChatMessage(BaseModel):
+    role: Literal["system", "user", "assistant"]
+    content: str = Field(..., min_length=1)
+
+
+class ChatStreamRequest(BaseModel):
+    messages: List[ChatMessage] = Field(..., min_length=1, description="Conversation history from the frontend")
+    agent_id: str = Field(..., description="Agent to respond as")
+    session_id: Optional[UUID] = Field(default=None, description="Optional session identifier for persistence")
+    topic: Optional[str] = Field(default=None, max_length=255, description="Optional topic label for persistence and prompt framing")
+    temperature: Optional[float] = Field(default=None, ge=0.0, le=1.5, description="Optional runtime temperature override")
+    save_response: bool = Field(default=True, description="Persist the completed assistant response when a session id is provided")
 
 
 class TelemetryData(BaseModel):
@@ -621,7 +784,8 @@ def build_context_prompt(topic: str, context_messages: List[Dict[str, Any]], age
         return (
             f"{agent_config.system_prompt}\n\n"
             f"Discussion topic: {topic}\n"
-            "You are taking the first turn. Provide a clear, substantive response."
+            "You are taking the first turn. Provide a clear, substantive response. "
+            "Do not prefix your answer with your name, a speaker label, or a turn number."
         )
 
     context_text = "\n".join(
@@ -633,8 +797,81 @@ def build_context_prompt(topic: str, context_messages: List[Dict[str, Any]], age
         f"Discussion topic: {topic}\n"
         "Recent discussion context (latest turns):\n"
         f"{context_text}\n\n"
-        "Now contribute the next turn. Keep it concise, concrete, and relevant."
+        "Now contribute the next turn. Keep it concise, concrete, and relevant. "
+        "Do not prefix your answer with your name, a speaker label, or a turn number."
     )
+
+
+def sanitize_generated_message(message: str, display_name: str) -> str:
+    cleaned = str(message or "").strip()
+    if not cleaned:
+        return ""
+
+    patterns = [
+        rf"^\s*Turn\s+\d+\s*,\s*{re.escape(display_name)}\s*:\s*",
+        r"^\s*Turn\s+\d+\s*:\s*",
+        rf"^\s*{re.escape(display_name)}\s*:\s*",
+    ]
+
+    for pattern in patterns:
+        cleaned = re.sub(pattern, "", cleaned, count=1, flags=re.IGNORECASE).strip()
+
+    return cleaned
+
+
+def _configure_pdf_fonts(pdf: FPDF) -> str:
+    regular_font = next((path for path in PDF_FONT_SEARCH_PATHS["regular"] if path.exists()), None)
+    bold_font = next((path for path in PDF_FONT_SEARCH_PATHS["bold"] if path.exists()), None)
+    italic_font = next((path for path in PDF_FONT_SEARCH_PATHS["italic"] if path.exists()), None)
+
+    if regular_font:
+        pdf.add_font("TranscriptSans", style="", fname=str(regular_font))
+        pdf.add_font("TranscriptSans", style="B", fname=str(bold_font or regular_font))
+        pdf.add_font("TranscriptSans", style="I", fname=str(italic_font or regular_font))
+        return "TranscriptSans"
+
+    logger.warning("No TTF font found for PDF export; falling back to Helvetica core font")
+    return "Helvetica"
+
+
+def _sanitize_pdf_text(value: Any, *, unicode_font_active: bool) -> str:
+    text = str(value or "")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = unicodedata.normalize("NFKC", text).translate(PDF_TEXT_REPLACEMENTS)
+    text = "".join(
+        character
+        for character in text
+        if character == "\n" or unicodedata.category(character) not in {"Cc", "Cf", "Cs", "Co", "Cn", "So"}
+    )
+
+    if unicode_font_active:
+        return text
+
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
+
+def build_chat_messages(
+    conversation_messages: List[ChatMessage],
+    agent_config: AgentConfig,
+    topic: Optional[str] = None,
+) -> List[Dict[str, str]]:
+    system_prompt = agent_config.system_prompt.strip()
+    if topic:
+        system_prompt = (
+            f"{system_prompt}\n\n"
+            f"Debate topic: {topic.strip()}\n"
+            "Respond in character, stay concrete, and answer the latest user message directly."
+        )
+
+    llm_messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
+    for message in conversation_messages:
+        llm_messages.append(
+            {
+                "role": message.role,
+                "content": message.content.strip(),
+            }
+        )
+    return llm_messages
 
 
 async def call_llm_api(
@@ -658,55 +895,220 @@ async def call_llm_api(
         "stream": False,
     }
 
-    try:
-        request_started = time.perf_counter()
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            response = await client.post(api_url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            network_rtt_ms = int((time.perf_counter() - request_started) * 1000)
-
-        if isinstance(data, dict):
-            choices = data.get("choices") or []
-            if choices:
-                message = choices[0].get("message") or {}
-                content = message.get("content", "")
-                if isinstance(content, list):
-                    content = "".join(
-                        item.get("text", "") if isinstance(item, dict) else str(item)
-                        for item in content
-                    )
-                content = str(content).strip()
-                metrics = _extract_execution_metrics(data, response.headers, network_rtt_ms)
-                return content or "I need a moment to process this turn.", metrics
-
-        logger.error("Unexpected LLM API payload: %s", data)
-        raise HTTPException(status_code=500, detail="Invalid response from LLM API")
-    except HTTPException:
-        raise
-    except httpx.HTTPStatusError as exc:
-        error_text = "Unknown upstream error"
+    for attempt in range(LLM_429_MAX_RETRIES + 1):
         try:
-            data = exc.response.json()
-            if isinstance(data, dict):
-                error_text = data.get("error") or data.get("message") or str(data)
-            else:
-                error_text = str(data)
-        except Exception:
-            error_text = exc.response.text[:300] if exc.response is not None else "No response body"
+            await _wait_for_provider_slot()
+            request_started = time.perf_counter()
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                response = await client.post(api_url, json=payload, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                network_rtt_ms = int((time.perf_counter() - request_started) * 1000)
 
-        logger.error(
-            "LLM provider status error: status=%s, body=%s",
-            exc.response.status_code if exc.response is not None else "unknown",
-            error_text,
-        )
-        raise HTTPException(
-            status_code=502,
-            detail=f"LLM API error ({exc.response.status_code}): {error_text}",
-        )
-    except httpx.HTTPError as exc:
-        logger.error("LLM provider transport error: %s", exc)
-        raise HTTPException(status_code=502, detail="Error communicating with LLM API")
+            if isinstance(data, dict):
+                choices = data.get("choices") or []
+                if choices:
+                    message = choices[0].get("message") or {}
+                    content = message.get("content", "")
+                    if isinstance(content, list):
+                        content = "".join(
+                            item.get("text", "") if isinstance(item, dict) else str(item)
+                            for item in content
+                        )
+                    content = str(content).strip()
+                    metrics = _extract_execution_metrics(data, response.headers, network_rtt_ms)
+                    return content or "I need a moment to process this turn.", metrics
+
+            logger.error("Unexpected LLM API payload: %s", data)
+            raise HTTPException(status_code=500, detail="Invalid response from LLM API")
+        except HTTPException:
+            raise
+        except httpx.HTTPStatusError as exc:
+            response = exc.response
+            error_text = _extract_provider_error_text(response) if response is not None else "Unknown upstream error"
+            status_code = response.status_code if response is not None else "unknown"
+
+            if response is not None and response.status_code == 429 and attempt < LLM_429_MAX_RETRIES:
+                retry_delay = _parse_retry_after_seconds(response, error_text) or min(2 ** attempt, 8)
+                await _sleep_for_retry(retry_delay, attempt + 1)
+                continue
+
+            logger.error(
+                "LLM provider status error: status=%s, body=%s",
+                status_code,
+                error_text,
+            )
+            raise HTTPException(
+                status_code=502,
+                detail=f"LLM API error ({status_code}): {error_text}",
+            )
+        except httpx.HTTPError as exc:
+            logger.error("LLM provider transport error: %s", exc)
+            raise HTTPException(status_code=502, detail="Error communicating with LLM API")
+
+    raise HTTPException(status_code=502, detail="LLM API retry budget exhausted")
+
+
+def _build_stream_execution_metrics(
+    *,
+    usage: Optional[Dict[str, Any]],
+    headers: httpx.Headers,
+    network_rtt_ms: int,
+    request_started: float,
+    first_token_at: Optional[float],
+    generated_message: str,
+) -> ExecutionMetrics:
+    base_metrics = _extract_execution_metrics(
+        {"usage": usage or {}},
+        headers,
+        network_rtt_ms,
+    )
+    generation_duration_ms = base_metrics.generation_duration_ms or int((time.perf_counter() - request_started) * 1000)
+    completion_tokens = base_metrics.completion_tokens
+    if completion_tokens is None and generated_message:
+        completion_tokens = max(1, len(generated_message.split()))
+
+    prompt_tokens = base_metrics.prompt_tokens
+    total_tokens = base_metrics.total_tokens
+    if total_tokens is None and (prompt_tokens is not None or completion_tokens is not None):
+        total_tokens = (prompt_tokens or 0) + (completion_tokens or 0)
+
+    ttft_ms = base_metrics.ttft_ms
+    if ttft_ms is None and first_token_at is not None:
+        ttft_ms = int((first_token_at - request_started) * 1000)
+
+    tokens_per_second = base_metrics.tokens_per_second
+    if not tokens_per_second and completion_tokens and generation_duration_ms > 0:
+        tokens_per_second = round(completion_tokens / (generation_duration_ms / 1000), 2)
+
+    return ExecutionMetrics(
+        generation_duration_ms=generation_duration_ms,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        tokens_per_second=tokens_per_second,
+        queue_time_ms=base_metrics.queue_time_ms,
+        prompt_time_ms=base_metrics.prompt_time_ms,
+        ttft_ms=ttft_ms,
+        network_rtt_ms=network_rtt_ms,
+        provider=base_metrics.provider,
+        updated_at=datetime.now(timezone.utc),
+    )
+
+
+async def stream_llm_api(
+    messages: List[Dict[str, str]],
+    agent_config: AgentConfig,
+    temperature_override: Optional[float] = None,
+    on_complete: Optional[Callable[[str, ExecutionMetrics], Awaitable[None]]] = None,
+) -> AsyncIterator[str]:
+    api_url = f"{LLM_API_BASE_URL}/chat/completions"
+    headers = {"Authorization": f"Bearer {LLM_API_KEY}"}
+    effective_temperature = (
+        float(temperature_override)
+        if isinstance(temperature_override, (int, float))
+        else float(agent_config.temperature)
+    )
+    payload = {
+        "model": LLM_MODEL_ID,
+        "messages": messages,
+        "temperature": effective_temperature,
+        "max_tokens": agent_config.max_tokens,
+        "top_p": 0.95,
+        "stream": True,
+        "stream_options": {"include_usage": True},
+    }
+
+    for attempt in range(LLM_429_MAX_RETRIES + 1):
+        try:
+            await _wait_for_provider_slot()
+            request_started = time.perf_counter()
+
+            async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, read=90.0)) as client:
+                async with client.stream("POST", api_url, json=payload, headers=headers) as response:
+                    response.raise_for_status()
+                    network_rtt_ms = int((time.perf_counter() - request_started) * 1000)
+                    first_token_at: Optional[float] = None
+                    usage_payload: Optional[Dict[str, Any]] = None
+                    generated_parts: List[str] = []
+
+                    async for line in response.aiter_lines():
+                        if not line or not line.startswith("data:"):
+                            continue
+
+                        payload_line = line[5:].strip()
+                        if not payload_line:
+                            continue
+                        if payload_line == "[DONE]":
+                            break
+
+                        try:
+                            chunk = json.loads(payload_line)
+                        except json.JSONDecodeError:
+                            logger.debug("Skipping non-JSON stream chunk: %s", payload_line)
+                            continue
+
+                        if isinstance(chunk.get("usage"), dict):
+                            usage_payload = chunk["usage"]
+
+                        choices = chunk.get("choices") or []
+                        if not choices:
+                            continue
+
+                        delta = choices[0].get("delta") or {}
+                        content = delta.get("content", "")
+                        if isinstance(content, list):
+                            content = "".join(
+                                item.get("text", "") if isinstance(item, dict) else str(item)
+                                for item in content
+                            )
+
+                        content = str(content)
+                        if not content:
+                            continue
+
+                        if first_token_at is None:
+                            first_token_at = time.perf_counter()
+
+                        generated_parts.append(content)
+                        yield content
+
+                    generated_message = "".join(generated_parts).strip()
+                    metrics = _build_stream_execution_metrics(
+                        usage=usage_payload,
+                        headers=response.headers,
+                        network_rtt_ms=network_rtt_ms,
+                        request_started=request_started,
+                        first_token_at=first_token_at,
+                        generated_message=generated_message,
+                    )
+                    if on_complete is not None:
+                        await on_complete(generated_message, metrics)
+                    return
+        except httpx.HTTPStatusError as exc:
+            response = exc.response
+            error_text = _extract_provider_error_text(response) if response is not None else "Unknown upstream error"
+            status_code = response.status_code if response is not None else "unknown"
+
+            if response is not None and response.status_code == 429 and attempt < LLM_429_MAX_RETRIES:
+                retry_delay = _parse_retry_after_seconds(response, error_text) or min(2 ** attempt, 8)
+                await _sleep_for_retry(retry_delay, attempt + 1)
+                continue
+
+            logger.error(
+                "Streaming LLM provider status error: status=%s, body=%s",
+                status_code,
+                error_text,
+            )
+            raise HTTPException(
+                status_code=502,
+                detail=f"LLM API error ({status_code}): {error_text}",
+            )
+        except httpx.HTTPError as exc:
+            logger.error("Streaming LLM provider transport error: %s", exc)
+            raise HTTPException(status_code=502, detail="Error communicating with LLM API")
+
+    raise HTTPException(status_code=502, detail="LLM API retry budget exhausted")
 
 
 async def save_message_to_storage(
@@ -794,6 +1196,7 @@ async def root() -> Dict[str, Any]:
         "endpoints": {
             "process_turn": "/process-turn (POST)",
             "generate_with_telemetry": "/generate (POST) - includes Jaccard Entropy telemetry",
+            "chat_stream": "/chat/stream (POST) - plain text streaming for the Next.js frontend",
             "export_pdf": "/export-pdf/{session_id} (GET)",
             "list_agents": "/agents (GET)",
             "register_agent": "/agents/register (POST)",
@@ -905,6 +1308,7 @@ async def process_turn(request: ProcessTurnRequest) -> ProcessTurnResponse:
         agent_config,
         temperature_override=request.temperature,
     )
+    generated_message = sanitize_generated_message(generated_message, agent_config.display_name)
     save_latest_execution_metrics(execution_metrics)
     latency_ms = execution_metrics.generation_duration_ms or execution_metrics.network_rtt_ms or 0
     entropy = calculate_jaccard_entropy(generated_message, previous_response) if previous_response else 0.0
@@ -933,6 +1337,73 @@ async def process_turn(request: ProcessTurnRequest) -> ProcessTurnResponse:
         telemetry=telemetry,
         execution_metrics=execution_metrics,
     )
+
+
+@app.post("/process-turn/stream")
+async def process_turn_stream(request: ProcessTurnRequest) -> StreamingResponse:
+    logger.info(
+        "Streaming turn: session=%s, agent=%s, topic=%s",
+        request.session_id,
+        request.agent_id,
+        request.topic,
+    )
+
+    agent_config = await fetch_agent_config(request.agent_id)
+    context_messages = await fetch_context_messages(request.session_id, limit=5)
+    turn_number = request.turn_number or (len(context_messages) + 1)
+    previous_response = ""
+    if context_messages:
+        previous_response = str(context_messages[-1].get("message", "") or "").strip()
+
+    prompt = build_context_prompt(request.topic, context_messages, agent_config)
+    final_payload: Optional[ProcessTurnStreamFinal] = None
+
+    async def handle_stream_completion(generated_message: str, execution_metrics: ExecutionMetrics) -> None:
+        nonlocal final_payload
+        generated_message = sanitize_generated_message(generated_message, agent_config.display_name)
+        save_latest_execution_metrics(execution_metrics)
+        latency_ms = execution_metrics.generation_duration_ms or execution_metrics.network_rtt_ms or 0
+        entropy = calculate_jaccard_entropy(generated_message, previous_response) if previous_response else 0.0
+        telemetry = TelemetryData(
+            entropy=entropy,
+            latency_ms=int(latency_ms),
+            word_count=len(generated_message.split()),
+        )
+
+        stored_message = await save_message_to_storage(
+            session_id=request.session_id,
+            agent_id=request.agent_id,
+            display_name=agent_config.display_name,
+            message=generated_message,
+            topic=request.topic,
+            turn_number=turn_number,
+        )
+
+        final_payload = ProcessTurnStreamFinal(
+            type="final",
+            message_id=UUID(str(stored_message["id"])),
+            agent_id=request.agent_id,
+            display_name=agent_config.display_name,
+            message=generated_message,
+            turn_number=turn_number,
+            created_at=datetime.now(timezone.utc),
+            telemetry=telemetry,
+            execution_metrics=execution_metrics,
+        )
+
+    async def event_stream() -> AsyncIterator[bytes]:
+        async for chunk in stream_llm_api(
+            [{"role": "user", "content": prompt}],
+            agent_config,
+            temperature_override=request.temperature,
+            on_complete=handle_stream_completion,
+        ):
+            yield (ProcessTurnStreamChunk(type="chunk", content=chunk).model_dump_json() + "\n").encode("utf-8")
+
+        if final_payload is not None:
+            yield (final_payload.model_dump_json() + "\n").encode("utf-8")
+
+    return StreamingResponse(event_stream(), media_type="application/x-ndjson")
 
 
 @app.post("/generate", response_model=GenerateResponse)
@@ -1006,6 +1477,67 @@ async def generate(request: GenerateRequest) -> GenerateResponse:
         raise HTTPException(status_code=500, detail="Error generating response")
 
 
+@app.post("/chat/stream")
+async def chat_stream(request: ChatStreamRequest) -> StreamingResponse:
+    logger.info(
+        "Streaming chat response: session=%s, agent=%s, topic=%s",
+        request.session_id,
+        request.agent_id,
+        request.topic,
+    )
+
+    if not request.messages:
+        raise HTTPException(status_code=400, detail="At least one message is required")
+
+    agent_config = await fetch_agent_config(request.agent_id)
+    llm_messages = build_chat_messages(request.messages, agent_config, topic=request.topic)
+
+    async def handle_stream_completion(
+        generated_message: str,
+        execution_metrics: ExecutionMetrics,
+    ) -> None:
+        if generated_message:
+            save_latest_execution_metrics(execution_metrics)
+
+        if (
+            generated_message
+            and request.save_response
+            and request.session_id is not None
+        ):
+            try:
+                topic = (request.topic or "Direct chat").strip() or "Direct chat"
+                turn_number = len(request.messages)
+                await save_message_to_storage(
+                    session_id=request.session_id,
+                    agent_id=request.agent_id,
+                    display_name=agent_config.display_name,
+                    message=generated_message,
+                    topic=topic,
+                    turn_number=turn_number,
+                )
+            except Exception as exc:
+                logger.warning("Unable to persist streamed response: %s", exc)
+
+    async def event_stream() -> AsyncIterator[bytes]:
+        try:
+            async for chunk in stream_llm_api(
+                llm_messages,
+                agent_config,
+                temperature_override=request.temperature,
+                on_complete=handle_stream_completion,
+            ):
+                if chunk:
+                    yield chunk.encode("utf-8")
+        except httpx.HTTPStatusError as exc:
+            logger.error("Streaming LLM provider status error: %s", exc)
+            raise
+        except httpx.HTTPError as exc:
+            logger.error("Streaming LLM provider transport error: %s", exc)
+            raise
+
+    return StreamingResponse(event_stream(), media_type="text/plain; charset=utf-8")
+
+
 @app.get("/export-pdf/{session_id}")
 async def export_pdf(session_id: UUID) -> FileResponse:
     logger.info("Exporting PDF for session: %s", session_id)
@@ -1015,32 +1547,40 @@ async def export_pdf(session_id: UUID) -> FileResponse:
         if not messages:
             raise HTTPException(status_code=404, detail=f"No messages found for session {session_id}")
 
-        topic = messages[0].get("topic", "N/A")
+        topic = _sanitize_pdf_text(messages[0].get("topic", "N/A"), unicode_font_active=True)
 
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 10, "EXHUMED - Discussion Session", ln=True, align="C")
+        font_family = _configure_pdf_fonts(pdf)
+        unicode_font_active = font_family != "Helvetica"
 
-        pdf.set_font("Arial", "", 10)
-        pdf.cell(0, 5, f"Session ID: {session_id}", ln=True)
-        pdf.cell(0, 5, f"Topic: {topic}", ln=True)
+        pdf.set_font(font_family, "B" if unicode_font_active else "", 16)
+        pdf.cell(0, 10, _sanitize_pdf_text("EXHUMED - Discussion Session", unicode_font_active=unicode_font_active), ln=True, align="C")
+
+        pdf.set_font(font_family, "", 10)
+        pdf.cell(0, 5, _sanitize_pdf_text(f"Session ID: {session_id}", unicode_font_active=unicode_font_active), ln=True)
+        pdf.cell(0, 5, _sanitize_pdf_text(f"Topic: {topic}", unicode_font_active=unicode_font_active), ln=True)
         pdf.ln(5)
 
         for msg in messages:
-            agent_name = msg.get("display_name", msg.get("agent_id", "Unknown"))
+            agent_name = _sanitize_pdf_text(
+                msg.get("display_name", msg.get("agent_id", "Unknown")),
+                unicode_font_active=unicode_font_active,
+            )
+            turn_number = _sanitize_pdf_text(msg.get("turn_number", "-"), unicode_font_active=unicode_font_active)
+            created_at = _sanitize_pdf_text(msg.get("created_at", "Unknown"), unicode_font_active=unicode_font_active)
+            text = _sanitize_pdf_text(msg.get("message", ""), unicode_font_active=unicode_font_active)
 
-            pdf.set_font("Arial", "B", 10)
+            pdf.set_font(font_family, "B" if unicode_font_active else "", 10)
             pdf.set_text_color(33, 87, 171)
-            pdf.cell(0, 4, f"{agent_name} (Turn {msg.get('turn_number', '-')})", ln=True)
+            pdf.cell(0, 4, f"{agent_name} (Turn {turn_number})", ln=True)
 
-            pdf.set_font("Arial", "I", 8)
+            pdf.set_font(font_family, "I" if unicode_font_active else "", 8)
             pdf.set_text_color(128, 128, 128)
-            pdf.cell(0, 3, str(msg.get("created_at", "Unknown")), ln=True)
+            pdf.cell(0, 3, created_at, ln=True)
 
-            pdf.set_font("Arial", "", 9)
+            pdf.set_font(font_family, "", 9)
             pdf.set_text_color(0, 0, 0)
-            text = str(msg.get("message", "")).replace("\n", " ")
             pdf.multi_cell(0, 4, text)
             pdf.ln(2)
 

@@ -87,3 +87,8 @@ Thumbs.db
 JACCARD_ENTROPY_IMPLEMENTATION.md
 test_jaccard.py
 backend/logs.*.json
+
+# Next.js prototype frontend
+front/node_modules/
+front/.next/
+front/.vercel/

@@ -18,6 +18,7 @@ Built as an experiment in orchestrating LLM agents, managing context, and design
 
 - **Backend:** FastAPI orchestrating asynchronous LLM calls  
 - **Frontend:** Streamlit interface for interaction and monitoring  
+- **Prototype Frontend:** Next.js 15 + Vercel AI SDK chat client in `front/`  
 - **LLM Engine:** Configurable OpenAI-compatible LLM provider for low-latency inference  
 
 Each agent follows a constrained dialogue loop (max 60 words), ensuring focused responses and preventing context drift.
@@ -43,6 +44,7 @@ To explore how multi-agent systems behave in structured environments, and how pr
 
 - Backend: Railway
 - Frontend: Streamlit Cloud
+- Next.js Prototype Frontend: Vercel
 - Domain: exhumed.streamlit.app
 
 ---
@@ -60,6 +62,11 @@ Copy `.env.example` to `.env` and add your real credentials for:
 - `UPSTASH_VECTOR_REST_URL`
 - `UPSTASH_VECTOR_REST_TOKEN`
 - `LLM_API_KEY`
+
+Optional browser-origin settings for the Next.js frontend:
+
+- `CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
+- `CORS_ALLOW_ORIGIN_REGEX=https://.*\.vercel\.app`
 
 ### 2. Install dependencies
 
@@ -93,7 +100,21 @@ streamlit run frontend/app.py --server.port 8501
 
 The frontend runs at `http://localhost:8501`.
 
-### 5. Optional: use the virtual environment executables directly
+### 5. Start the Next.js frontend prototype
+
+The new frontend lives beside the Streamlit app in `front/` and talks directly to the FastAPI backend via browser requests.
+
+```bash
+cd front
+npm install
+npm run dev
+```
+
+Create `front/.env.local` from `front/.env.example` if you need a non-default backend URL.
+
+The Next.js frontend runs at `http://localhost:3000`.
+
+### 6. Optional: use the virtual environment executables directly
 
 Windows:
 
@@ -109,7 +130,7 @@ macOS / Linux:
 ./.venv/bin/streamlit run frontend/app.py --server.port 8501
 ```
 
-### 6. Optional: run with Docker
+### 7. Optional: run with Docker
 
 ```bash
 docker-compose up --build

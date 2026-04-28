@@ -7,6 +7,7 @@ import { logoUrl } from "./utils";
 type ControlSidebarProps = {
   isSidebarOpen: boolean;
   isMobileViewport: boolean;
+  showSidebarToggle: boolean;
   discussionActive: boolean;
   sessionId: string;
   selectedCouncil: LegendDetails[];
@@ -29,6 +30,7 @@ type ControlSidebarProps = {
 export function ControlSidebar({
   isSidebarOpen,
   isMobileViewport,
+  showSidebarToggle,
   discussionActive,
   sessionId,
   selectedCouncil,
@@ -64,24 +66,26 @@ export function ControlSidebar({
             </div>
           ) : null}
         </div>
-        <button
-          type="button"
-          className="sidebarToggle sidebarToggleIntegrated"
-          onClick={onToggleSidebar}
-          aria-expanded={isSidebarOpen}
-          aria-controls="exhumed-control-sidebar"
-          aria-label={isSidebarOpen ? "Collapse controls sidebar" : "Expand controls sidebar"}
-        >
-          <span className="sidebarToggleGlyph" aria-hidden="true">
-            {isMobileViewport ? "×" : isSidebarOpen ? "←" : "→"}
-          </span>
-        </button>
+        {showSidebarToggle ? (
+          <button
+            type="button"
+            className="sidebarToggle sidebarToggleIntegrated"
+            onClick={onToggleSidebar}
+            aria-expanded={isSidebarOpen}
+            aria-controls="exhumed-control-sidebar"
+            aria-label={isSidebarOpen ? "Collapse controls sidebar" : "Expand controls sidebar"}
+          >
+            <span className="sidebarToggleGlyph" aria-hidden="true">
+              {isMobileViewport ? "x" : isSidebarOpen ? "<" : ">"}
+            </span>
+          </button>
+        ) : null}
       </div>
 
       <div className="panel">
         <div className="stack">
           <button className="button buttonPrimaryCta" type="button" onClick={onOpenSpeakerModal}>
-            🪏 Select Speaker
+            Select Speaker
           </button>
 
           <SidebarSection title="DRAFTED COUNCIL" panelClassName="panel">
@@ -98,7 +102,7 @@ export function ControlSidebar({
                   disabled={discussionActive}
                 >
                   <span className="draftedChipLabel">{legend.display_name}</span>
-                  <span className="draftedChipRemove" aria-hidden="true">×</span>
+                  <span className="draftedChipRemove" aria-hidden="true">x</span>
                 </button>
               ))}
             </div>
@@ -133,13 +137,13 @@ export function ControlSidebar({
                 {startButtonLabel}
               </button>
               <button className="buttonGhost" type="button" onClick={onHaltDebate} disabled={!discussionActive}>
-                🛑 Halt Debate
+                Halt Debate
               </button>
             </div>
 
             <div className="actions actionsCompact">
               <button className="buttonDanger" type="button" onClick={() => void onWipeDebate()} disabled={isWipingSession}>
-                {isWipingSession ? "🧼 Wiping..." : "🧹 Wipe Debate"}
+                {isWipingSession ? "Wiping..." : "Wipe Debate"}
               </button>
               <button
                 className="buttonGhost"
@@ -147,7 +151,7 @@ export function ControlSidebar({
                 onClick={() => void onDownloadTranscript()}
                 disabled={isDownloadingTranscript}
               >
-                {isDownloadingTranscript ? "🖨️ Preparing..." : "📃 Download Transcript"}
+                {isDownloadingTranscript ? "Preparing..." : "Download Transcript"}
               </button>
             </div>
           </SidebarSection>
@@ -161,7 +165,7 @@ export function ControlSidebar({
             </div>
             <div className="actions actionsCompact sessionActions">
               <button className="buttonGhost" type="button" onClick={onRenewSession}>
-                ⟳ Refresh Session
+                Refresh Session
               </button>
             </div>
           </SidebarSection>

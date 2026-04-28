@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { backendUrl } from "@/lib/config";
 import type {
@@ -36,7 +36,8 @@ const SIDEBAR_WIDTH_STORAGE_KEY = "exhumed-front-sidebar-width";
 const ENTROPY_STORAGE_KEY = "exhumed-front-target-entropy";
 const SERVICES_CACHE_KEY = "exhumed-front-services-cache";
 const DEFAULT_TOPIC = "The future of AI in society.";
-const MOBILE_BREAKPOINT_PX = 1024;
+const MOBILE_BREAKPOINT_PX = 767;
+const STACKED_LAYOUT_BREAKPOINT_PX = 1180;
 const CONTEXT_WINDOW_TOKENS = 8192;
 const SERVICES_CACHE_TTL_MS = 60_000;
 const TELEMETRY_REFRESH_THROTTLE_MS = 15_000;
@@ -68,6 +69,8 @@ export function ChatWorkbench() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH_PX);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isStackedViewport, setIsStackedViewport] = useState(false);
+  const [hasResolvedViewport, setHasResolvedViewport] = useState(false);
   const [isWipingSession, setIsWipingSession] = useState(false);
   const [isDownloadingTranscript, setIsDownloadingTranscript] = useState(false);
   const [isSpeakerModalOpen, setIsSpeakerModalOpen] = useState(false);
@@ -139,7 +142,7 @@ export function ChatWorkbench() {
     streamRevealFrameRef.current = requestAnimationFrame(step);
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const storedSessionId = window.localStorage.getItem(SESSION_STORAGE_KEY);
     const storedTopic = window.localStorage.getItem(TOPIC_STORAGE_KEY);
     const storedSidebarState = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
@@ -147,11 +150,15 @@ export function ChatWorkbench() {
     const storedEntropy = window.localStorage.getItem(ENTROPY_STORAGE_KEY);
     const nextSessionId = storedSessionId || makeSessionId();
     const mobileViewport = window.innerWidth <= MOBILE_BREAKPOINT_PX;
+    const stackedViewport = window.innerWidth <= STACKED_LAYOUT_BREAKPOINT_PX;
+    const compactViewport = stackedViewport;
 
     setSessionId(nextSessionId);
     window.localStorage.setItem(SESSION_STORAGE_KEY, nextSessionId);
     setIsMobileViewport(mobileViewport);
-    setIsSidebarOpen(mobileViewport ? true : storedSidebarState !== "false");
+    setIsStackedViewport(stackedViewport);
+    setIsSidebarOpen(compactViewport ? false : storedSidebarState !== "false");
+    setHasResolvedViewport(true);
 
     if (storedSidebarWidth) {
       const parsedWidth = Number(storedSidebarWidth);
@@ -191,10 +198,13 @@ export function ChatWorkbench() {
 
     function syncViewportState() {
       const mobileViewport = window.innerWidth <= MOBILE_BREAKPOINT_PX;
+      const stackedViewport = window.innerWidth <= STACKED_LAYOUT_BREAKPOINT_PX;
+      const compactViewport = stackedViewport;
       setIsMobileViewport(mobileViewport);
+      setIsStackedViewport(stackedViewport);
 
-      if (mobileViewport) {
-        setIsSidebarOpen(true);
+      if (compactViewport) {
+        setIsSidebarOpen(false);
         return;
       }
 
@@ -218,23 +228,23 @@ export function ChatWorkbench() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || isMobileViewport) {
+    if (typeof window === "undefined" || isStackedViewport) {
       return;
     }
 
     window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isSidebarOpen));
-  }, [isMobileViewport, isSidebarOpen]);
+  }, [isStackedViewport, isSidebarOpen]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || isMobileViewport) {
+    if (typeof window === "undefined" || isStackedViewport) {
       return;
     }
 
     window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(Math.round(sidebarWidth)));
-  }, [isMobileViewport, sidebarWidth]);
+  }, [isMobileViewport, isStackedViewport, sidebarWidth]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || isMobileViewport) {
+    if (typeof window === "undefined" || isStackedViewport) {
       return;
     }
 
@@ -266,7 +276,7 @@ export function ChatWorkbench() {
       window.removeEventListener("pointercancel", stopDragging);
       document.body.classList.remove("sidebarResizing");
     };
-  }, [isMobileViewport]);
+  }, [isStackedViewport]);
 
   useEffect(() => {
     let cancelled = false;
@@ -683,7 +693,7 @@ export function ChatWorkbench() {
 
   function openSpeakerModal() {
     setIsSpeakerModalOpen(true);
-    if (isMobileViewport) {
+    if (isStackedViewport) {
       closeSidebar();
     }
   }
@@ -749,7 +759,7 @@ export function ChatWorkbench() {
     setLatestTelemetry(null);
     setStatusNote("New session armed.");
     setControlError("");
-    if (isMobileViewport) {
+    if (isStackedViewport) {
       closeSidebar();
     }
   }
@@ -819,7 +829,7 @@ export function ChatWorkbench() {
 
     setDiscussionActive(true);
     setStatusNote(canResumeQueuedSpeaker ? "Round resumed." : "Round armed.");
-    if (isMobileViewport) {
+    if (isStackedViewport) {
       closeSidebar();
     }
   }
@@ -834,7 +844,7 @@ export function ChatWorkbench() {
   }
 
   function beginSidebarResize() {
-    if (isMobileViewport || !isSidebarOpen) {
+    if (isStackedViewport || !isSidebarOpen) {
       return;
     }
 
@@ -842,7 +852,7 @@ export function ChatWorkbench() {
     document.body.classList.add("sidebarResizing");
   }
 
-  const workspaceStyle = !isMobileViewport
+  const workspaceStyle = !isStackedViewport
     ? {
         gridTemplateColumns: `${isSidebarOpen ? `${Math.round(sidebarWidth)}px` : "56px"} minmax(0, 1fr) 320px`,
       }
@@ -850,7 +860,7 @@ export function ChatWorkbench() {
 
   return (
     <main className="shell">
-      {isMobileViewport && !isSidebarOpen ? (
+      {hasResolvedViewport && isStackedViewport && !isSidebarOpen ? (
         <button
           type="button"
           className="sidebarToggle sidebarToggleFloating"
@@ -866,7 +876,7 @@ export function ChatWorkbench() {
         </button>
       ) : null}
 
-      {isMobileViewport && isSidebarOpen ? (
+      {hasResolvedViewport && isStackedViewport && isSidebarOpen ? (
         <button
           type="button"
           className="sidebarScrim"
@@ -876,21 +886,25 @@ export function ChatWorkbench() {
       ) : null}
 
       <section
-        className={`workspace ${!isSidebarOpen && !isMobileViewport ? "workspaceSidebarCollapsed" : ""} ${
-          isMobileViewport ? "workspaceMobile" : ""
+        className={`workspace ${!hasResolvedViewport ? "workspaceViewportPending" : ""} ${
+          !isSidebarOpen && !isStackedViewport ? "workspaceSidebarCollapsed" : ""
+        } ${
+          isStackedViewport ? "workspaceMobile" : ""
         }`.trim()}
         style={workspaceStyle}
       >
         <aside
           id="exhumed-control-sidebar"
           className={`sidebar ${isSidebarOpen ? "sidebarOpen" : "sidebarClosed"} ${
-            isMobileViewport ? "sidebarMobile" : "sidebarDesktop"
+            isStackedViewport ? "sidebarMobile" : "sidebarDesktop"
+          } ${!hasResolvedViewport ? "sidebarViewportPending" : ""}
           }`.trim()}
-          aria-hidden={isMobileViewport ? !isSidebarOpen : undefined}
+          aria-hidden={isStackedViewport ? !isSidebarOpen : undefined}
         >
           <ControlSidebar
             isSidebarOpen={isSidebarOpen}
-            isMobileViewport={isMobileViewport}
+            isMobileViewport={isStackedViewport}
+            showSidebarToggle={true}
             discussionActive={discussionActive}
             sessionId={sessionId}
             selectedCouncil={selectedCouncil}
@@ -909,7 +923,7 @@ export function ChatWorkbench() {
             onDownloadTranscript={downloadTranscript}
             onRenewSession={renewSession}
           />
-          {!isMobileViewport && isSidebarOpen ? (
+          {!isStackedViewport && isSidebarOpen ? (
             <button
               type="button"
               className="sidebarResizeHandle"

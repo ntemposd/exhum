@@ -32,6 +32,7 @@ body {
   min-height: 100vh;
   color: var(--ink);
   font-family: var(--font-mono), monospace;
+  overflow-x: hidden;
   background:
     linear-gradient(rgba(20, 17, 15, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(20, 17, 15, 0.04) 1px, transparent 1px);
@@ -58,9 +59,10 @@ select {
   display: flex;
   flex-direction: column;
   width: 100%;
+  max-width: 100%;
   margin: 0;
   min-height: 100vh;
-  padding: 0 24px 0 0;
+  padding: 0;
 }
 
 .sidebarToggle,
@@ -129,8 +131,8 @@ select {
 
 .siteFooter {
   border-top: 1px solid var(--line);
-  width: calc(100% + 24px);
-  margin: auto -24px 0 0;
+  width: 100%;
+  margin: 18px 0 0;
   padding: 20px 24px 18px;
   color: var(--muted);
   font-size: 0.78rem;
@@ -233,7 +235,13 @@ select {
   align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;
+  padding: 0 24px 0 0;
   transition: grid-template-columns 180ms ease;
+}
+
+.workspaceViewportPending {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
 }
 
 .workspaceSidebarCollapsed {
@@ -241,6 +249,15 @@ select {
 }
 
 .workspaceMobile {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.workspaceStacked {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.workspaceStackedCollapsed {
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -252,6 +269,7 @@ select {
 
 .chatColumn,
 .telemetryColumn {
+  width: 100%;
   padding-top: 14px;
 }
 
@@ -261,6 +279,11 @@ select {
   gap: 18px;
   height: 100%;
   transition: transform 180ms ease, opacity 180ms ease, width 180ms ease, margin 180ms ease;
+}
+
+.sidebarViewportPending {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .sidebarDesktop {
@@ -354,6 +377,22 @@ select {
 
 .sidebarDesktop.sidebarOpen {
   opacity: 1;
+}
+
+.sidebarStacked {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  height: auto;
+  padding: 14px 18px 20px;
+  background:
+    radial-gradient(circle at top left, rgba(227, 177, 0, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(255, 249, 240, 0.98), rgba(246, 235, 214, 0.94));
+  border: 2px solid rgba(20, 17, 15, 0.08);
+}
+
+.sidebarStacked.sidebarClosed {
+  display: none;
 }
 
 .sidebarResizeHandle {
@@ -885,13 +924,15 @@ body.sidebarResizing .sidebarResizeHandle::after {
 .discussionPane {
   display: grid;
   gap: 0;
+  min-width: 0;
 }
 
 .discussionTitleRow {
-  display: inline-flex;
+  display: flex;
   align-items: baseline;
   gap: 14px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .topicSection {
@@ -906,14 +947,16 @@ body.sidebarResizing .sidebarResizeHandle::after {
 
 .topicEditor {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 0;
   border: 2px solid var(--line);
   background: linear-gradient(180deg, rgba(255, 251, 245, 0.98), rgba(247, 235, 214, 0.96));
   color: var(--ink);
   padding: 10px 14px;
   box-shadow: 4px 4px 0 var(--line);
-  field-sizing: content;
   overflow: hidden;
+  overflow-wrap: anywhere;
   line-height: 1.5;
   resize: none;
 }
@@ -941,7 +984,8 @@ body.sidebarResizing .sidebarResizeHandle::after {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .transcript {
@@ -1664,34 +1708,34 @@ body.sidebarResizing .sidebarResizeHandle::after {
   gap: 6px;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1180px) {
   .shell {
     width: 100%;
+  }
+
+  .workspace {
     padding: 78px 16px 20px;
   }
 
   .siteFooter {
     width: 100%;
     margin: 18px 0 0;
-    padding: 18px 8px 0;
-  }
-
-  .workspace {
-    grid-template-columns: 1fr;
-  }
-
-  .workspaceSidebarCollapsed {
-    grid-template-columns: 1fr;
+    padding: 18px 8px 18px;
   }
 
   .signalGrid {
     grid-template-columns: 1fr 1fr;
   }
 
+  .draftedCouncil {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .telemetryColumn {
+    grid-column: 1 / -1;
     order: 3;
-    padding-left: 22px;
-    padding-right: 22px;
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
   .sidebarToggleFloating {
@@ -1708,21 +1752,54 @@ body.sidebarResizing .sidebarResizeHandle::after {
     box-shadow: 4px 0 14px rgba(20, 17, 15, 0.12);
   }
 
+  .workspaceStackedCollapsed {
+    padding-top: 78px;
+  }
+
+  .sidebarStacked {
+    padding: 14px 16px 18px;
+  }
+
+  .workspaceStackedCollapsed .chatColumn,
+  .workspaceStackedCollapsed .telemetryColumn {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .sidebarRailHeader {
+    margin-bottom: 4px;
+  }
+
+  .topicSection,
+  .chatHeader,
+  .transcript {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .workspaceMobile,
+  .workspaceViewportPending {
+    grid-template-columns: 1fr;
+  }
+
   .speakerModalGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 767px) {
   .shell {
     width: 100%;
+  }
+
+  .workspace {
     padding: 78px 10px 20px;
   }
 
   .siteFooter {
     width: 100%;
     margin: 18px 0 0;
-    padding: 18px 8px 0;
+    padding: 18px 8px 18px;
   }
 
   .sidebarToggleFloating {
@@ -1800,8 +1877,18 @@ body.sidebarResizing .sidebarResizeHandle::after {
     flex-direction: column;
   }
 
+  .discussionTitleRow {
+    gap: 8px;
+  }
+
+  .sectionTitle {
+    font-size: 1.35rem;
+  }
+
   .discussionStatus {
     text-align: left;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
   }
 
   .speakerModalPanel {

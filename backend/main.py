@@ -18,7 +18,7 @@ import time
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Literal, Optional
+from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Literal, Optional, Tuple
 from uuid import UUID, uuid4
 
 import httpx
@@ -41,11 +41,22 @@ logger = logging.getLogger(__name__)
 
 AGENT_REGISTRY_CACHE_TTL_SECONDS = 60.0
 AGENT_CONFIG_CACHE_TTL_SECONDS = 300.0
+VECTOR_CAPABILITIES_CACHE_TTL_SECONDS = 300.0
 _agent_registry_cache: Dict[str, Any] = {
     "expires_at": 0.0,
     "agents": [],
 }
 _agent_config_cache: Dict[str, Dict[str, Any]] = {}
+_vector_capabilities_cache: Dict[str, Any] = {
+    "expires_at": 0.0,
+    "supports_text_upsert": None,
+    "detail": None,
+}
+_vector_write_status: Dict[str, Any] = {
+    "status": "unknown",
+    "detail": None,
+    "updated_at": None,
+}
 
 FILE_DIR = Path(__file__).resolve().parent
 REPO_ROOT_CANDIDATE = FILE_DIR.parent
@@ -135,6 +146,70 @@ def _extract_provider_error_text(response: httpx.Response) -> str:
         return str(data)
     except Exception:
         return response.text[:300] if response is not None else "No response body"
+
+
+def _read_mapping_or_attr(value: Any, *names: str) -> Any:
+    if isinstance(value, dict):
+        for name in names:
+            if name in value and value[name] is not None:
+                return value[name]
+
+    for name in names:
+        candidate = getattr(value, name, None)
+        if candidate is not None:
+            return candidate
+
+    return None
+
+
+def _inspect_vector_text_upsert_support(info: Any) -> Tuple[bool, str]:
+    dense_index = _read_mapping_or_attr(info, "dense_index", "denseIndex", "dense")
+    sparse_index = _read_mapping_or_attr(info, "sparse_index", "sparseIndex", "sparse")
+    embedding_models: List[str] = []
+
+    for index_details in (dense_index, sparse_index):
+        embedding_model = _read_mapping_or_attr(index_details, "embedding_model", "embeddingModel")
+        if embedding_model:
+            embedding_models.append(str(embedding_model))
+
+    if embedding_models:
+        return True, f"Embedding model configured: {', '.join(embedding_models)}"
+
+    return False, "Index has no hosted embedding model; raw text upserts require an embedding-enabled Upstash Vector index."
+
+
+def _vector_index_supports_text_upsert(*, force_refresh: bool = False) -> Tuple[bool, str]:
+    now = time.monotonic()
+    cached_support = _vector_capabilities_cache.get("supports_text_upsert")
+    cached_detail = str(_vector_capabilities_cache.get("detail") or "")
+
+    if (
+        not force_refresh
+        and cached_support is not None
+        and now < float(_vector_capabilities_cache.get("expires_at") or 0.0)
+    ):
+        return bool(cached_support), cached_detail
+
+    info = vector_index.info()
+    supports_text_upsert, detail = _inspect_vector_text_upsert_support(info)
+    _vector_capabilities_cache.update(
+        {
+            "expires_at": now + VECTOR_CAPABILITIES_CACHE_TTL_SECONDS,
+            "supports_text_upsert": supports_text_upsert,
+            "detail": detail,
+        }
+    )
+    return supports_text_upsert, detail
+
+
+def _record_vector_write_status(success: bool, detail: Optional[str] = None) -> None:
+    _vector_write_status.update(
+        {
+            "status": "ok" if success else "error",
+            "detail": (detail or "")[:240] if detail else None,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
 
 
 def _parse_retry_after_seconds(response: httpx.Response, error_text: str) -> float:
@@ -641,13 +716,24 @@ async def check_services() -> Dict[str, Any]:
 
     vector_started = time.perf_counter()
     try:
-        vector_index.info()
+        supports_text_upsert, vector_detail = _vector_index_supports_text_upsert(force_refresh=True)
         vector_latency_ms = int((time.perf_counter() - vector_started) * 1000)
+        vector_status = "ONLINE"
+        service_detail: Optional[str] = None
+
+        if not supports_text_upsert:
+            vector_status = "DEGRADED"
+            service_detail = vector_detail
+        elif _vector_write_status.get("status") == "error":
+            vector_status = "DEGRADED"
+            service_detail = str(_vector_write_status.get("detail") or "Vector writes are failing")
+
         services.append(
             ServiceStatus(
                 name="Vector",
-                status="ONLINE",
+                status=vector_status,
                 latency_ms=vector_latency_ms,
+                detail=service_detail,
             )
         )
     except Exception as exc:
@@ -1136,26 +1222,33 @@ async def save_message_to_storage(
 
     try:
         # Persist semantically searchable discussion content to Upstash Vector.
-        # Some indexes are configured without embedding support; do not fail the request
-        # when vector write is unavailable.
+        # Raw text upserts require an embedding-enabled index.
+        vector_metadata = {
+            "session_id": str(session_id),
+            "agent_id": agent_id,
+            "display_name": display_name,
+            "topic": topic,
+            "turn_number": turn_number,
+            "created_at": created_at,
+        }
         try:
-            vector_index.upsert(
-                vectors=[
-                    (
-                        str(message_id),
-                        message,
+            supports_text_upsert, vector_detail = _vector_index_supports_text_upsert()
+            if not supports_text_upsert:
+                _record_vector_write_status(False, vector_detail)
+                logger.warning("Vector upsert skipped: %s", vector_detail)
+            else:
+                vector_index.upsert(
+                    vectors=[
                         {
-                            "session_id": str(session_id),
-                            "agent_id": agent_id,
-                            "display_name": display_name,
-                            "topic": topic,
-                            "turn_number": turn_number,
-                            "created_at": created_at,
-                        },
-                    )
-                ]
-            )
+                            "id": str(message_id),
+                            "data": message,
+                            "metadata": vector_metadata,
+                        }
+                    ]
+                )
+                _record_vector_write_status(True)
         except Exception as vector_exc:
+            _record_vector_write_status(False, str(vector_exc))
             logger.warning("Vector upsert skipped: %s", vector_exc)
 
         # Keep ordered timeline in Redis for deterministic "last 5" and PDF export.

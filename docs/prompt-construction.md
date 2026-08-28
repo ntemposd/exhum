@@ -241,4 +241,4 @@ LLM call ───────────────────────�
 
 **Adaptive top_k compensates for weak retrieval signals.** When the best-scoring chunk scores below 0.72, the result cap expands from 5 to 7 using candidates already in the fetch pool — no extra Upstash call. This trades a marginally larger prompt for better coverage when the topic query lands in a less-dense region of the corpus.
 
-**Model:** `llama-3.1-8b-instant` on Groq (current default). Chosen for free-tier TPM headroom on multi-turn, multi-speaker debates. Override via `LLM_MODEL_ID` when deploying with a larger model.
+**Model:** `openai/gpt-oss-20b` on Groq (current default; Groq's replacement after `llama-3.1-8b-instant` was decommissioned). Override via `LLM_MODEL_ID` when deploying with a larger model such as `openai/gpt-oss-120b`.

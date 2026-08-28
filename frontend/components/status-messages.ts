@@ -6,9 +6,13 @@ import type { ProcessTurnStreamStatus } from "@/lib/types";
 const RETRY_COUNTDOWN_PATTERN = /(?:retrying in|wait for)\s+([\d.]+)\s*s/i;
 const THEMED_RETRY_COUNTDOWN_PATTERN = /^The ether is congested\. (?:Retrying in|Wait for)\s+[\d.]+s$/i;
 const THROTTLE_PATTERN = /rate limit|request throttled|\b429\b|llm rate limit|quota exhausted/i;
+const MODEL_UNAVAILABLE_PATTERN =
+  /decommissioned|model_decommissioned|model_not_found|model does not exist|is no longer (?:supported|served|available)|has been deprecated|unknown model|invalid model/i;
+const RAW_LLM_API_ERROR_PATTERN = /^LLM API error\b/i;
 
 export const THROTTLE_STATUS_HEADER = "The ether is congested";
 export const QUOTA_EXHAUSTED_STATUS_HEADER = "The ether is exhausted. The daily quota is spent.";
+export const MODEL_UNAVAILABLE_STATUS_HEADER = "The chosen voice has left the ether.";
 
 export function parseRetryCountdownSeconds(message: string): number | null {
   const match = message.match(RETRY_COUNTDOWN_PATTERN);
@@ -80,6 +84,14 @@ export function themeHeaderStatusNote(message: string): string {
 
   if (/agent failed to produce a response/i.test(trimmed)) {
     return "The voice did not return.";
+  }
+
+  if (MODEL_UNAVAILABLE_PATTERN.test(trimmed) || trimmed === MODEL_UNAVAILABLE_STATUS_HEADER) {
+    return MODEL_UNAVAILABLE_STATUS_HEADER;
+  }
+
+  if (RAW_LLM_API_ERROR_PATTERN.test(trimmed)) {
+    return "The séance was interrupted.";
   }
 
   return trimmed;

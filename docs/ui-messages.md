@@ -26,8 +26,9 @@ The canonical theming layer is `frontend/components/status-messages.ts`. Backend
 | `Transcribing the séance...` | `Preparing PDF...` | PDF export starts |
 | `The transcript surfaces.` | `Print dialog opened.` | PDF export succeeds, print dialog opens |
 | `Nothing to transcribe.` | `No messages to export.` | PDF export attempted with no messages |
-| `The séance was interrupted.` | `Turn execution failed` | Default fallback when a turn errors |
+| `The séance was interrupted.` | `Turn execution failed` / `LLM API error (…)` | Default fallback when a turn errors |
 | `The voice did not return.` | `Agent failed to produce a response.` | Displayed in the transcript bubble on turn failure |
+| `The chosen voice has left the ether.` | Groq `model_decommissioned` / `model_not_found` | Configured model is retired or missing |
 
 ---
 
@@ -39,6 +40,7 @@ The canonical theming layer is `frontend/components/status-messages.ts`. Backend
 | **Transcript header** | *(hidden during retry)* — stays on the prior line e.g. `Raising {name}...` | Header does not mirror the countdown; bubble owns throttle detail |
 | **Transcript header** | `The ether is congested` | Static throttle copy when surfaced outside an active thinking bubble |
 | **Transcript header** | `The ether is exhausted. The daily quota is spent.` | Daily token quota exhausted; backend fails fast |
+| **Transcript header** | `The chosen voice has left the ether.` | Groq model decommissioned or missing (`model_decommissioned` / `model_not_found`) |
 
 Legacy mapping (backend → themed):
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class PromptBudget:
-    """Token-conscious defaults for llama-3.1-8b-instant (6K TPM on Groq free tier)."""
+    """Token-conscious defaults for Groq gpt-oss-20b debate turns."""
 
     retrieval_top_k: int = 4
     retrieval_weak_top_k_bonus: int = 1

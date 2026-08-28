@@ -25,6 +25,18 @@ function sanitizeClientErrorDetail(detail: string): string {
     return "The séance could not reach the server. Try again in a moment.";
   }
 
+  if (
+    /decommissioned|model_decommissioned|model_not_found|model does not exist|is no longer (?:supported|served|available)|has been deprecated|unknown model|invalid model/i.test(
+      trimmed,
+    )
+  ) {
+    return "The chosen voice has left the ether.";
+  }
+
+  if (/^LLM API error\b/i.test(trimmed)) {
+    return "The séance was interrupted.";
+  }
+
   return trimmed;
 }
 

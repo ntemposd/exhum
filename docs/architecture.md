@@ -127,7 +127,7 @@ For each turn the backend does the following:
 2. Load the last 4 context turns from Redis, topic-scoped. If the panel has 5 or more speakers, also fetch and prepend the current speaker's own last turn (anchor mechanism).
 3. Query Upstash Vector with the topic text as the query. Fetch 11 candidates, apply score threshold (0.60), apply source diversity filter (max 2 chunks per source), apply adaptive top_k (5 if top score ≥ 0.72, otherwise 7).
 4. Build the prompt from: system prompt, topic, retrieved knowledge block, retrieval guidance, context turns, turn instructions.
-5. Call the LLM provider (Groq, `llama-3.1-8b-instant`).
+5. Call the LLM provider (Groq, `openai/gpt-oss-20b`).
 6. Persist the finished turn to Redis, update telemetry, emit execution metrics.
 7. Stream or return the response to the frontend.
 
@@ -204,10 +204,10 @@ Tracked per turn and surfaced in the `VECTOR USAGE` section of the frontend side
 
 ## LLM Provider
 
-**Model:** `llama-3.1-8b-instant` on Groq (default in `backend/settings.py` and `.env.example`).
-**Why 8B instant for now:** lower latency and a much higher free-tier TPM ceiling than larger models, which keeps multi-speaker debates viable without exhausting Groq quotas.
+**Model:** `openai/gpt-oss-20b` on Groq (default in `backend/settings.py` and `.env.example`).
+**Why GPT-OSS 20B:** Groq decommissioned `llama-3.1-8b-instant` on 2026-08-16 for free and developer tiers. GPT-OSS 20B is the official production replacement — about 1000 tok/s, 250K TPM on the developer plan, and cheap enough for multi-speaker debates. The larger sibling is `openai/gpt-oss-120b` if you want more depth and can spend the quota.
 
-The backend also supports any OpenAI-compatible provider via `LLM_API_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL_ID` environment variables. Swap to a larger model (for example `llama-3.3-70b-versatile`) when quota and cost allow.
+The backend also supports any OpenAI-compatible provider via `LLM_API_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL_ID` environment variables.
 
 ## Current Limitations
 

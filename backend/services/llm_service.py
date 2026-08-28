@@ -83,9 +83,22 @@ class LLMService:
             else float(agent_config.temperature)
         )
 
+    def _uses_gpt_oss(self) -> bool:
+        return (self._model_id or "").lower().startswith("openai/gpt-oss-")
+
     def _resolve_max_tokens(self, agent_config: Any) -> int:
         configured = int(getattr(agent_config, "max_tokens", 512) or 512)
-        return min(configured, self._debate_max_tokens)
+        resolved = min(configured, self._debate_max_tokens)
+        if self._uses_gpt_oss():
+            # Low-effort reasoning still consumes completion tokens before speech.
+            return min(self._debate_max_tokens, max(resolved, 640))
+        return resolved
+
+    def _apply_model_request_options(self, body: Dict[str, Any]) -> Dict[str, Any]:
+        if self._uses_gpt_oss():
+            body["reasoning_effort"] = "low"
+            body["include_reasoning"] = False
+        return body
 
     def build_provider_request(
         self,
@@ -108,7 +121,7 @@ class LLMService:
 
         return {
             "request_url": f"{self._api_base_url}/chat/completions",
-            "body": body,
+            "body": self._apply_model_request_options(body),
         }
 
     async def _post_chat_completion(
@@ -130,6 +143,7 @@ class LLMService:
             "top_p": self._top_p,
             "stream": stream,
         }
+        self._apply_model_request_options(payload)
 
         for attempt in range(self._max_retries + 1):
             try:
